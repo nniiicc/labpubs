@@ -3,6 +3,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/labpubs)](https://pypi.org/project/labpubs/)
 [![Python](https://img.shields.io/pypi/pyversions/labpubs)](https://pypi.org/project/labpubs/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub](https://img.shields.io/github/stars/nniiicc/labpubs)](https://github.com/nniiicc/labpubs)
 
 Publication tracking and retrieval for research labs.
 

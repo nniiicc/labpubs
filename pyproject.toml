@@ -61,6 +61,12 @@ labpubs = "labpubs.cli:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[project.urls]
+Homepage = "https://github.com/nniiicc/labpubs"
+Repository = "https://github.com/nniiicc/labpubs"
+Documentation = "https://labpubs.readthedocs.io"
+"Bug Tracker" = "https://github.com/nniiicc/labpubs/issues"
+
 [tool.ruff]
 line-length = 88
 target-version = "py311"
