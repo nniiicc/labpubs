@@ -1,0 +1,51 @@
+# labpubs.yaml -- Example configuration
+
+lab:
+  name: "Computational Social Science Lab"
+  institution: "University of Washington"
+
+# Email for OpenAlex polite pool (strongly recommended)
+openalex_email: "labpubs@example.edu"
+
+# Optional: Semantic Scholar API key for higher rate limits
+semantic_scholar_api_key: null
+
+# Where to store the SQLite database
+database_path: "~/.labpubs/labpubs.db"
+
+# Researchers to track
+researchers:
+  - name: "Jane Doe"
+    openalex_id: "A5023888391"
+    semantic_scholar_id: "1741101"
+    orcid: "0000-0002-1234-5678"
+
+  - name: "John Smith"
+    openalex_id: "A5012345678"
+
+  # If you only have a name, run `labpubs setup` to resolve IDs
+  - name: "Alice Johnson"
+    affiliation: "University of Washington"
+
+# Sources to query (order = priority for metadata conflicts)
+sources:
+  - openalex
+  - semantic_scholar
+  - crossref
+
+# Notification settings (all optional)
+notifications:
+  slack:
+    webhook_url: "https://hooks.slack.com/services/T.../B.../..."
+    channel: "#lab-papers"
+  # email:
+  #   smtp_host: "smtp.example.edu"
+  #   smtp_port: 587
+  #   from_address: "labpubs@example.edu"
+  #   to_addresses:
+  #     - "lab-list@example.edu"
+
+# Export settings
+exports:
+  bibtex_path: "~/lab-publications.bib"
+  json_path: "~/lab-publications.json"

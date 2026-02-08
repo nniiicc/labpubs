@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+
+# Environment variables
+.env
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+test_outputs/
+
+# Ruff / mypy cache
+.ruff_cache/
+.mypy_cache/
+
+# Coverage
+htmlcov/
+.coverage
+
+# Sphinx documentation build
+docs/_build/
+
+# Agent instructions
+CLAUDE.md
