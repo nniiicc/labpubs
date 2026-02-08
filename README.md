@@ -5,8 +5,6 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub](https://img.shields.io/github/stars/nniiicc/labpubs)](https://github.com/nniiicc/labpubs)
 
-Publication tracking and retrieval for research labs.
-
 **labpubs** syncs publications from OpenAlex, Semantic Scholar, and Crossref into a local SQLite database, deduplicates across sources, and exports to BibTeX, CSL-JSON, CV entries, and grant reports. It includes a Click CLI, a Model Context Protocol (MCP) server, and a GitHub Issues workflow for manual verification.
 
 ## Features
