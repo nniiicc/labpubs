@@ -163,6 +163,40 @@ class SemanticScholarBackend:
             )
         return results
 
+    async def resolve_author_by_orcid(
+        self, orcid: str
+    ) -> Author | None:
+        """Look up a Semantic Scholar author directly by ORCID.
+
+        Args:
+            orcid: ORCID identifier (e.g. ``0000-0002-1234-5678``).
+
+        Returns:
+            Author if found, None otherwise.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None, partial(self._resolve_by_orcid_sync, orcid)
+        )
+
+    def _resolve_by_orcid_sync(self, orcid: str) -> Author | None:
+        """Synchronous ORCID-based author lookup."""
+        try:
+            author = self._client.get_author(f"ORCID:{orcid}")
+            if author:
+                return Author(
+                    name=getattr(author, "name", "Unknown"),
+                    semantic_scholar_id=getattr(
+                        author, "authorId", None
+                    ),
+                    orcid=orcid,
+                )
+        except Exception:
+            logger.debug(
+                "ORCID %s not found in Semantic Scholar", orcid
+            )
+        return None
+
     async def resolve_author_id(
         self, name: str, affiliation: str | None = None
     ) -> list[Author]:

@@ -533,6 +533,211 @@ def setup(ctx: click.Context) -> None:
             )
 
 
+@main.command("init")
+@click.argument("csv_file", type=click.Path(exists=True))
+@click.option(
+    "-o",
+    "--output",
+    default="labpubs.yaml",
+    type=click.Path(),
+    help="Output path for the generated config (default: labpubs.yaml).",
+)
+@click.option(
+    "--lab-name",
+    default="",
+    help="Name of the research lab.",
+)
+@click.option(
+    "--institution",
+    default="",
+    help="Institution name (used for name-search fallback).",
+)
+@click.option(
+    "--openalex-email",
+    default=None,
+    help="Email for OpenAlex polite pool.",
+)
+@click.option(
+    "--s2-api-key",
+    default=None,
+    help="Semantic Scholar API key (optional).",
+)
+@click.option(
+    "--merge",
+    is_flag=True,
+    help="Merge into an existing labpubs.yaml instead of overwriting.",
+)
+@click.option(
+    "--non-interactive",
+    is_flag=True,
+    help="Auto-accept ORCID matches and skip ambiguous candidates.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Print generated YAML to stdout without writing a file.",
+)
+def init_config(
+    csv_file: str,
+    output: str,
+    lab_name: str,
+    institution: str,
+    openalex_email: str | None,
+    s2_api_key: str | None,
+    merge: bool,
+    non_interactive: bool,
+    dry_run: bool,
+) -> None:
+    """Generate labpubs.yaml from a CSV of lab members.
+
+    CSV_FILE should contain at minimum a 'name' column. An 'orcid'
+    column enables direct ID resolution. The command queries OpenAlex
+    and Semantic Scholar to resolve author IDs, falling back to name
+    search when ORCID lookup fails.
+
+    \b
+    Example CSV:
+        name,orcid
+        Jane Doe,0000-0001-2345-6789
+        John Smith,0000-0002-3456-7890
+    """
+    from pathlib import Path
+
+    from labpubs.resolve import (
+        ResolveResult,
+        generate_config_yaml,
+        merge_into_existing,
+        resolve_researchers_from_csv,
+    )
+    from labpubs.sources.openalex import OpenAlexBackend
+    from labpubs.sources.semantic_scholar import SemanticScholarBackend
+
+    oa_backend = OpenAlexBackend(email=openalex_email)
+    s2_backend = SemanticScholarBackend(api_key=s2_api_key)
+
+    def progress(name: str, i: int, total: int) -> None:
+        click.echo(f"[{i + 1}/{total}] Resolving {name}...")
+
+    click.echo(f"Reading {csv_file}...")
+    results: list[ResolveResult] = asyncio.run(
+        resolve_researchers_from_csv(
+            csv_file,
+            openalex_backend=oa_backend,
+            s2_backend=s2_backend,
+            progress_callback=progress,
+        )
+    )
+
+    # Interactive review of results.
+    for r in results:
+        _review_openalex(r, non_interactive)
+        _review_s2(r, non_interactive)
+
+    # Generate or merge YAML.
+    if merge and Path(output).exists():
+        yaml_str = merge_into_existing(output, results)
+        click.echo(f"\nMerged {len(results)} researchers into {output}")
+    else:
+        yaml_str = generate_config_yaml(
+            results,
+            lab_name=lab_name,
+            institution=institution,
+            openalex_email=openalex_email,
+        )
+
+    if dry_run:
+        click.echo("\n--- Generated YAML ---")
+        click.echo(yaml_str)
+    else:
+        Path(output).write_text(yaml_str)
+        click.echo(f"Config written to {output}")
+
+    # Summary.
+    oa_count = sum(1 for r in results if r.openalex_id)
+    s2_count = sum(1 for r in results if r.semantic_scholar_id)
+    click.echo(
+        f"\nResolved: {oa_count}/{len(results)} OpenAlex, "
+        f"{s2_count}/{len(results)} Semantic Scholar"
+    )
+
+
+def _review_openalex(
+    result: "ResolveResult", non_interactive: bool
+) -> None:
+    """Review and optionally select an OpenAlex ID."""
+    if result.openalex_id:
+        label = "ORCID match" if result.openalex_confident else "CSV"
+        click.echo(
+            f"  {result.name}: OpenAlex {result.openalex_id} ({label})"
+        )
+        return
+
+    candidates = result.openalex_candidates
+    if not candidates:
+        click.echo(f"  {result.name}: no OpenAlex candidates")
+        return
+
+    if non_interactive:
+        click.echo(
+            f"  {result.name}: {len(candidates)} OpenAlex "
+            f"candidate(s) -- skipped (non-interactive)"
+        )
+        return
+
+    click.echo(f"\n  OpenAlex candidates for {result.name}:")
+    for i, c in enumerate(candidates):
+        aff = c.affiliation or "no affiliation"
+        click.echo(f"    [{i + 1}] {c.name} -- {aff}")
+        if c.openalex_id:
+            click.echo(f"        ID: {c.openalex_id}")
+    choice = click.prompt(
+        "    Select (0 to skip)", type=int, default=0
+    )
+    if 1 <= choice <= len(candidates):
+        selected = candidates[choice - 1]
+        result.openalex_id = selected.openalex_id
+        click.echo(f"    Selected: {selected.name}")
+
+
+def _review_s2(
+    result: "ResolveResult", non_interactive: bool
+) -> None:
+    """Review and optionally select a Semantic Scholar ID."""
+    if result.semantic_scholar_id:
+        label = "ORCID match" if result.s2_confident else "CSV"
+        click.echo(
+            f"  {result.name}: S2 {result.semantic_scholar_id} "
+            f"({label})"
+        )
+        return
+
+    candidates = result.s2_candidates
+    if not candidates:
+        click.echo(f"  {result.name}: no S2 candidates")
+        return
+
+    if non_interactive:
+        click.echo(
+            f"  {result.name}: {len(candidates)} S2 candidate(s) "
+            f"-- skipped (non-interactive)"
+        )
+        return
+
+    click.echo(f"\n  S2 candidates for {result.name}:")
+    for i, c in enumerate(candidates):
+        aff = c.affiliation or "no affiliation"
+        click.echo(f"    [{i + 1}] {c.name} -- {aff}")
+        if c.semantic_scholar_id:
+            click.echo(f"        ID: {c.semantic_scholar_id}")
+    choice = click.prompt(
+        "    Select (0 to skip)", type=int, default=0
+    )
+    if 1 <= choice <= len(candidates):
+        selected = candidates[choice - 1]
+        result.semantic_scholar_id = selected.semantic_scholar_id
+        click.echo(f"    Selected: {selected.name}")
+
+
 @main.command("mcp")
 @click.pass_context
 def mcp_serve(ctx: click.Context) -> None:

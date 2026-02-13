@@ -93,6 +93,36 @@ Each researcher entry requires at least a `name` and one identifier:
 
 At least one of `openalex_id`, `semantic_scholar_id`, or `orcid` should be provided for publication discovery to work.
 
+## Generating Configuration from CSV
+
+Instead of writing the YAML by hand, use `labpubs init` to generate it from a CSV roster:
+
+```bash
+labpubs init members.csv --lab-name "My Lab" --institution "University of Example"
+```
+
+### CSV Format
+
+The CSV must have a `name` column. An `orcid` column enables automatic ID resolution. Optional columns can pre-fill known IDs.
+
+| Column | Required | Aliases |
+|---|---|---|
+| `name` | Yes | `full_name`, `fullname`, `author` |
+| `orcid` | No | `orcid_id`, `orcid-id` |
+| `openalex_id` | No | `openalex`, `oa_id` |
+| `semantic_scholar_id` | No | `s2_id`, `s2id` |
+| `affiliation` | No | `institution` |
+
+### Resolution Strategy
+
+For each researcher, the command:
+
+1. Tries a direct ORCID lookup on each API (most accurate).
+2. Falls back to name search if ORCID is not linked in the API.
+3. Presents ambiguous candidates for interactive selection.
+
+Use `--non-interactive` to auto-accept ORCID matches and skip ambiguous results, or `--merge` to add new researchers to an existing config.
+
 ## GitHub Integration
 
 The GitHub integration uses the `gh` CLI for API access. Ensure `gh` is installed and authenticated:

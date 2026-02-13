@@ -54,20 +54,15 @@ semantic_scholar_api_key: your-key-here   # optional
 
 ## Quick Start
 
-1. Create a `labpubs.yaml` config file:
+1. Generate a config from a CSV of lab members:
 
-```yaml
-lab:
-  name: My Research Lab
-
-openalex_email: you@university.edu
-
-researchers:
-  - name: Jane Doe
-    openalex_id: "A5000000001"
-
-database_path: labpubs.db
+```bash
+labpubs init members.csv --lab-name "My Research Lab" --openalex-email you@university.edu
 ```
+
+This resolves OpenAlex and Semantic Scholar IDs from ORCIDs and writes `labpubs.yaml`. The CSV needs `name` and `orcid` columns. See `labpubs init --help` for all options.
+
+Or create `labpubs.yaml` by hand (see [configuration docs](https://labpubs.readthedocs.io/en/latest/configuration.html)).
 
 2. Sync publications and list results:
 
@@ -100,6 +95,7 @@ Run `labpubs --help` for all commands. Key commands:
 
 | Command | Description |
 |---------|-------------|
+| `init` | Generate `labpubs.yaml` from a CSV of lab members |
 | `sync` | Fetch new publications from upstream APIs |
 | `list` | List publications with filters |
 | `show` | Show detailed metadata for a work |
