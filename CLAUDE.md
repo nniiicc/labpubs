@@ -66,6 +66,23 @@ All backends implement the `SourceBackend` protocol in `base.py`:
 - **Semantic Scholar** (`semantic_scholar.py`): Uses `semanticscholar` library. ORCID resolution via `get_author(f"ORCID:{orcid}")` (currently returns 404 for all researchers). Falls back to `search_author(name)` with early termination at 5 results (the library paginates through all results otherwise). Uses `get_author_papers()` for paginated paper fetch. The `tldr` field is NOT supported by `get_author_papers()`.
 - **Crossref** (`crossref.py`): Uses `habanero`. `resolve_and_fetch_works()` is a stub returning `([], None)`.
 
+### Open Source Scaffolding
+
+When creating new software packages or libraries, always include these files:
+
+- **`pyproject.toml`** — Package metadata, dependencies, build system, tool config (ruff, mypy, pytest). Use hatchling as build backend.
+- **`LICENSE`** — MIT unless otherwise specified
+- **`README.md`** — Badges, features, install, quick start, API, CLI reference, contributing link
+- **`.gitignore`** — Python-specific ignores (pycache, .venv, .egg-info, dist, etc.)
+- **`.github/workflows/ci.yml`** — CI pipeline (lint + test matrix across supported Python versions)
+- **`CONTRIBUTING.md`** — Dev setup, code style, how to run tests, how to submit PRs
+- **`CHANGELOG.md`** — [Keep a Changelog](https://keepachangelog.com/) format
+- **`.github/ISSUE_TEMPLATE/`** — Bug report and feature request templates
+- **`.github/pull_request_template.md`** — PR checklist (tests, lint, docs)
+- **`CODE_OF_CONDUCT.md`** — Contributor Covenant v2.1
+- **`SECURITY.md`** — Vulnerability reporting policy with contact email
+- **`.github/dependabot.yml`** — Automated dependency update PRs
+
 ### Key Gotchas
 
 - S2 `search_author(name, limit=5)` treats `limit` as page size, not total results — always iterate with a counter and `break` at 5.

@@ -4,6 +4,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/labpubs)](https://pypi.org/project/labpubs/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![GitHub](https://img.shields.io/github/stars/nniiicc/labpubs)](https://github.com/nniiicc/labpubs)
+[![CI](https://github.com/nniiicc/labpubs/actions/workflows/ci.yml/badge.svg)](https://github.com/nniiicc/labpubs/actions/workflows/ci.yml)
 
 **labpubs** syncs publications from OpenAlex, Semantic Scholar, and Crossref into a local SQLite database, deduplicates across sources, and exports to BibTeX, CSL-JSON, CV entries, and grant reports. It includes a Click CLI, a Model Context Protocol (MCP) server, and a GitHub Issues workflow for manual verification.
 
@@ -133,6 +134,12 @@ Full documentation (configuration reference, CLI details, MCP tools, Python API)
 pip install labpubs[docs]
 sphinx-build -b html docs docs/_build/html
 ```
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
