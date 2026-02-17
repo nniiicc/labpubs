@@ -1,6 +1,7 @@
 """Formatted citation string export for CV and website use."""
 
 from labpubs.models import Work
+from labpubs.normalize import split_author_name
 
 
 def _format_authors_apa(work: Work) -> str:
@@ -17,12 +18,14 @@ def _format_authors_apa(work: Work) -> str:
 
     names: list[str] = []
     for author in work.authors:
-        parts = author.name.strip().split()
-        if len(parts) >= 2:
-            initials = " ".join(f"{p[0]}." for p in parts[:-1])
-            names.append(f"{parts[-1]}, {initials}")
-        elif parts:
-            names.append(parts[0])
+        given, family = split_author_name(author.name)
+        if given and family:
+            initials = " ".join(
+                f"{p[0]}." for p in given.split()
+            )
+            names.append(f"{family}, {initials}")
+        elif family:
+            names.append(family)
 
     if len(names) == 1:
         return names[0]
@@ -47,18 +50,14 @@ def _format_authors_chicago(work: Work) -> str:
 
     names: list[str] = []
     for i, author in enumerate(work.authors):
-        parts = author.name.strip().split()
-        if len(parts) >= 2:
+        given, family = split_author_name(author.name)
+        if given and family:
             if i == 0:
-                names.append(
-                    f"{parts[-1]}, {' '.join(parts[:-1])}"
-                )
+                names.append(f"{family}, {given}")
             else:
-                names.append(
-                    f"{' '.join(parts[:-1])} {parts[-1]}"
-                )
-        elif parts:
-            names.append(parts[0])
+                names.append(f"{given} {family}")
+        elif family:
+            names.append(family)
 
     if len(names) == 1:
         return names[0]

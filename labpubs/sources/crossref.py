@@ -165,3 +165,17 @@ class CrossrefBackend:
             "Crossref does not support author ID resolution"
         )
         return []
+
+    async def resolve_and_fetch_works(
+        self,
+        stored_id: str | None,
+        orcid: str | None,
+        since: date | None = None,
+        name: str | None = None,
+    ) -> tuple[list[Work], str | None]:
+        """Not supported -- Crossref lacks stable author IDs.
+
+        Returns:
+            Empty tuple.
+        """
+        return [], None

@@ -5,7 +5,6 @@ Primary data source with broadest free coverage and stable author IDs.
 
 import asyncio
 import logging
-import re
 import unicodedata
 from datetime import date
 from functools import partial
@@ -15,6 +14,7 @@ import pyalex
 from pyalex import Authors, Works
 
 from labpubs.models import Author, Award, Funder, Source, Work, WorkType
+from labpubs.normalize import normalize_doi as _normalize_doi
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +26,6 @@ _OPENALEX_TYPE_MAP: dict[str, WorkType] = {
     "book-chapter": WorkType.BOOK_CHAPTER,
     "dissertation": WorkType.DISSERTATION,
 }
-
-
-def _normalize_doi(doi: str | None) -> str | None:
-    """Normalize a DOI to lowercase without URL prefix.
-
-    Args:
-        doi: Raw DOI string, possibly with URL prefix.
-
-    Returns:
-        Normalized DOI or None.
-    """
-    if doi is None:
-        return None
-    doi = doi.lower().strip()
-    doi = re.sub(r"^https?://doi\.org/", "", doi)
-    return doi or None
 
 
 def _openalex_work_to_model(work: dict[str, Any]) -> Work:
@@ -264,6 +248,85 @@ class OpenAlexBackend:
                 author_id,
             )
         return results
+
+    async def resolve_and_fetch_works(
+        self,
+        stored_id: str | None,
+        orcid: str | None,
+        since: date | None = None,
+        name: str | None = None,
+    ) -> tuple[list[Work], str | None]:
+        """Fetch works from all known OpenAlex IDs for a researcher.
+
+        Resolves the current canonical OpenAlex author ID via ORCID,
+        then fetches works from both the stored and resolved IDs (if
+        different).  Deduplicates by OpenAlex work ID.
+
+        Args:
+            stored_id: OpenAlex author ID from config/DB (may be stale).
+            orcid: Researcher ORCID for resolving current canonical ID.
+            since: Optional date filter.
+            name: Researcher name (unused by OpenAlex, accepted for
+                protocol compliance).
+
+        Returns:
+            Tuple of (deduplicated works, ORCID-resolved OpenAlex
+            author ID or None).
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                self._resolve_and_fetch_sync, stored_id, orcid, since
+            ),
+        )
+
+    def _resolve_and_fetch_sync(
+        self,
+        stored_id: str | None,
+        orcid: str | None,
+        since: date | None,
+    ) -> tuple[list[Work], str | None]:
+        """Synchronous resolve-and-fetch implementation."""
+        author_ids: set[str] = set()
+        resolved_id: str | None = None
+
+        if stored_id:
+            author_ids.add(stored_id)
+
+        # Resolve current canonical ID via ORCID
+        if orcid:
+            author = self._resolve_by_orcid_sync(orcid)
+            if author and author.openalex_id:
+                resolved_id = author.openalex_id
+                author_ids.add(resolved_id)
+                if stored_id and resolved_id != stored_id:
+                    logger.warning(
+                        "OpenAlex profile fragmentation detected "
+                        "for ORCID %s: stored ID %s, "
+                        "ORCID-resolved ID %s",
+                        orcid,
+                        stored_id,
+                        resolved_id,
+                    )
+
+        if not author_ids:
+            return [], None
+
+        # Fetch from all known IDs, dedup by OA work ID
+        all_works: list[Work] = []
+        seen_oa_ids: set[str] = set()
+        for aid in author_ids:
+            works = self._fetch_sync(aid, since)
+            for work in works:
+                oa_id = work.openalex_id
+                if oa_id and oa_id in seen_oa_ids:
+                    continue
+                if oa_id:
+                    seen_oa_ids.add(oa_id)
+                all_works.append(work)
+
+        return all_works, resolved_id
 
     async def resolve_author_by_orcid(
         self, orcid: str

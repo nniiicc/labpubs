@@ -41,6 +41,3 @@ htmlcov/
 
 # Sphinx documentation build
 docs/_build/
-
-# Agent instructions
-CLAUDE.md

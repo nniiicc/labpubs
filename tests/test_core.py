@@ -90,6 +90,67 @@ class TestStoreBasics:
         assert researchers[0].name == "Jane Doe"
         assert researchers[0].is_lab_member is True
 
+    def test_researcher_dates_and_groups(
+        self, tmp_db: Store
+    ) -> None:
+        """Active dates and groups round-trip through the store."""
+        tmp_db.upsert_researcher(
+            name="Jane Doe",
+            config_key="jane",
+            openalex_id="A123",
+            start_date="2020-09-01",
+            end_date="2023-06-30",
+            groups=["NLP", "faculty"],
+        )
+        researchers = tmp_db.get_researchers()
+        assert len(researchers) == 1
+        r = researchers[0]
+        assert r.start_date == "2020-09-01"
+        assert r.end_date == "2023-06-30"
+        assert r.groups == ["NLP", "faculty"]
+
+    def test_researcher_active_no_end_date(
+        self, tmp_db: Store
+    ) -> None:
+        """Researcher with no end_date is still active."""
+        tmp_db.upsert_researcher(
+            name="John Smith",
+            config_key="john",
+            start_date="2024-01-15",
+        )
+        researchers = tmp_db.get_researchers()
+        assert researchers[0].start_date == "2024-01-15"
+        assert researchers[0].end_date is None
+
+    def test_researcher_no_groups(self, tmp_db: Store) -> None:
+        """Researcher with no groups gets empty list."""
+        tmp_db.upsert_researcher(
+            name="Solo",
+            config_key="solo",
+        )
+        researchers = tmp_db.get_researchers()
+        assert researchers[0].groups == []
+
+    def test_researcher_update_preserves_dates(
+        self, tmp_db: Store
+    ) -> None:
+        """Updating a researcher preserves dates and groups."""
+        tmp_db.upsert_researcher(
+            name="Jane Doe",
+            config_key="jane",
+            start_date="2020-09-01",
+            groups=["NLP"],
+        )
+        # Update with new group
+        tmp_db.upsert_researcher(
+            name="Jane Doe",
+            config_key="jane",
+            start_date="2020-09-01",
+            groups=["NLP", "IR"],
+        )
+        researchers = tmp_db.get_researchers()
+        assert researchers[0].groups == ["NLP", "IR"]
+
 
 class TestConfig:
     """Tests for config loading."""
@@ -105,3 +166,38 @@ class TestConfig:
         """FileNotFoundError raised for missing config."""
         with pytest.raises(FileNotFoundError):
             load_config(tmp_path / "nonexistent.yaml")
+
+    def test_config_with_dates_and_groups(
+        self, tmp_path: Path
+    ) -> None:
+        """Config loads researchers with dates and groups."""
+        config_content = f"""
+lab:
+  name: "Test Lab"
+database_path: "{tmp_path / 'test.db'}"
+researchers:
+  - name: "Jane Doe"
+    openalex_id: "A123"
+    start_date: "2020-09-01"
+    groups:
+      - NLP
+      - faculty
+  - name: "John Smith"
+    start_date: "2019-09-01"
+    end_date: "2023-06-30"
+    groups:
+      - IR
+sources:
+  - openalex
+"""
+        config_path = tmp_path / "labpubs.yaml"
+        config_path.write_text(config_content)
+        config = load_config(config_path)
+
+        assert config.researchers[0].start_date == "2020-09-01"
+        assert config.researchers[0].end_date is None
+        assert config.researchers[0].groups == ["NLP", "faculty"]
+
+        assert config.researchers[1].start_date == "2019-09-01"
+        assert config.researchers[1].end_date == "2023-06-30"
+        assert config.researchers[1].groups == ["IR"]

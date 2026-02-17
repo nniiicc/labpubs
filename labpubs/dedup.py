@@ -4,45 +4,16 @@ Uses a tiered strategy: DOI exact match, fuzzy title match, and
 author+year+title fallback.
 """
 
-import re
-import unicodedata
+from typing import TypeVar
 
 from rapidfuzz import fuzz
 
 from labpubs.models import Award, Funder, Source, Work, WorkType
+from labpubs.normalize import normalize_doi as _normalize_doi
+from labpubs.normalize import normalize_title as _normalize_title
+from labpubs.normalize import split_author_name
 
-
-def _normalize_doi(doi: str | None) -> str | None:
-    """Normalize a DOI to lowercase without URL prefix.
-
-    Args:
-        doi: Raw DOI string.
-
-    Returns:
-        Normalized DOI or None.
-    """
-    if doi is None:
-        return None
-    doi = doi.lower().strip()
-    doi = re.sub(r"^https?://doi\.org/", "", doi)
-    return doi or None
-
-
-def _normalize_title(title: str) -> str:
-    """Normalize a title for comparison.
-
-    Args:
-        title: Raw title string.
-
-    Returns:
-        Normalized title.
-    """
-    text = title.lower().strip()
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(c for c in text if not unicodedata.combining(c))
-    text = re.sub(r"[^\w\s]", "", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+_T = TypeVar("_T", Award, Funder)
 
 
 def _extract_surnames(work: Work) -> set[str]:
@@ -56,9 +27,9 @@ def _extract_surnames(work: Work) -> set[str]:
     """
     surnames: set[str] = set()
     for author in work.authors:
-        parts = author.name.strip().split()
-        if parts:
-            surnames.add(parts[-1].lower())
+        _, family = split_author_name(author.name)
+        if family:
+            surnames.add(family.lower())
     return surnames
 
 
@@ -173,43 +144,29 @@ def merge_works(existing: Work, new: Work) -> Work:
     )
 
 
-def _merge_awards(
-    existing: list[Award], new: list[Award]
-) -> list[Award]:
-    """Merge award lists, deduplicating by openalex_id.
+def _merge_by_openalex_id(
+    existing: list[_T], new: list[_T]
+) -> list[_T]:
+    """Merge lists of Award or Funder, deduplicating by openalex_id.
+
+    Keeps the existing item when both lists contain the same ID.
 
     Args:
-        existing: Awards from the existing work.
-        new: Awards from the new work.
+        existing: Items from the existing work.
+        new: Items from the new work.
 
     Returns:
         Deduplicated merged list.
     """
-    seen: dict[str, Award] = {}
-    for award in existing:
-        seen[award.openalex_id] = award
-    for award in new:
-        if award.openalex_id not in seen:
-            seen[award.openalex_id] = award
+    seen: dict[str, _T] = {}
+    for item in existing:
+        seen[item.openalex_id] = item
+    for item in new:
+        if item.openalex_id not in seen:
+            seen[item.openalex_id] = item
     return list(seen.values())
 
 
-def _merge_funders(
-    existing: list[Funder], new: list[Funder]
-) -> list[Funder]:
-    """Merge funder lists, deduplicating by openalex_id.
-
-    Args:
-        existing: Funders from the existing work.
-        new: Funders from the new work.
-
-    Returns:
-        Deduplicated merged list.
-    """
-    seen: dict[str, Funder] = {}
-    for funder in existing:
-        seen[funder.openalex_id] = funder
-    for funder in new:
-        if funder.openalex_id not in seen:
-            seen[funder.openalex_id] = funder
-    return list(seen.values())
+# Backward-compatible aliases
+_merge_awards = _merge_by_openalex_id
+_merge_funders = _merge_by_openalex_id

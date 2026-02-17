@@ -4,9 +4,7 @@ Persists researchers, works, and sync history in a local SQLite database.
 """
 
 import logging
-import re
 import sqlite3
-import unicodedata
 from datetime import date, datetime
 from pathlib import Path
 
@@ -23,6 +21,7 @@ from labpubs.models import (
     Work,
     WorkType,
 )
+from labpubs.normalize import normalize_title as _normalize_title
 
 logger = logging.getLogger(__name__)
 
@@ -174,25 +173,11 @@ ALTER TABLE works ADD COLUMN verification_issue_url TEXT;
 ALTER TABLE works ADD COLUMN notes TEXT;
 """
 
-
-def _normalize_title(title: str) -> str:
-    """Normalize a title for fuzzy matching.
-
-    Lowercases, strips accents, removes punctuation, and collapses
-    whitespace.
-
-    Args:
-        title: Raw title string.
-
-    Returns:
-        Normalized title.
-    """
-    text = title.lower().strip()
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(c for c in text if not unicodedata.combining(c))
-    text = re.sub(r"[^\w\s]", "", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+_MIGRATION_ADD_RESEARCHER_FIELDS = """
+ALTER TABLE researchers ADD COLUMN start_date TEXT;
+ALTER TABLE researchers ADD COLUMN end_date TEXT;
+ALTER TABLE researchers ADD COLUMN groups TEXT;
+"""
 
 
 def _work_to_row(work: Work) -> dict[str, str | int | None]:
@@ -358,6 +343,18 @@ class Store:
                 if stmt:
                     self._conn.execute(stmt)
 
+        cursor = self._conn.execute(
+            "PRAGMA table_info(researchers)"
+        )
+        r_columns = {row["name"] for row in cursor}
+        if "start_date" not in r_columns:
+            for stmt in (
+                _MIGRATION_ADD_RESEARCHER_FIELDS.strip().split(";")
+            ):
+                stmt = stmt.strip()
+                if stmt:
+                    self._conn.execute(stmt)
+
     def upsert_researcher(
         self,
         name: str,
@@ -366,6 +363,9 @@ class Store:
         semantic_scholar_id: str | None = None,
         orcid: str | None = None,
         affiliation: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        groups: list[str] | None = None,
     ) -> int:
         """Insert or update a researcher record.
 
@@ -376,10 +376,16 @@ class Store:
             semantic_scholar_id: Semantic Scholar author ID.
             orcid: ORCID identifier.
             affiliation: Institutional affiliation.
+            start_date: Date the researcher joined (ISO format).
+            end_date: Date the researcher left (ISO format, None=active).
+            groups: List of group names the researcher belongs to.
 
         Returns:
             Database row ID for the researcher.
         """
+        groups_json = (
+            orjson.dumps(groups).decode() if groups else None
+        )
         cursor = self._conn.execute(
             "SELECT id FROM researchers WHERE config_key = ?",
             (config_key,),
@@ -390,7 +396,8 @@ class Store:
                 """UPDATE researchers
                    SET name = ?, openalex_id = ?,
                        semantic_scholar_id = ?, orcid = ?,
-                       affiliation = ?
+                       affiliation = ?, start_date = ?,
+                       end_date = ?, groups = ?
                    WHERE config_key = ?""",
                 (
                     name,
@@ -398,6 +405,9 @@ class Store:
                     semantic_scholar_id,
                     orcid,
                     affiliation,
+                    start_date,
+                    end_date,
+                    groups_json,
                     config_key,
                 ),
             )
@@ -407,8 +417,9 @@ class Store:
         cursor = self._conn.execute(
             """INSERT INTO researchers
                (name, openalex_id, semantic_scholar_id, orcid,
-                affiliation, config_key)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+                affiliation, config_key, start_date, end_date,
+                groups)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 name,
                 openalex_id,
@@ -416,10 +427,47 @@ class Store:
                 orcid,
                 affiliation,
                 config_key,
+                start_date,
+                end_date,
+                groups_json,
             ),
         )
         self._conn.commit()
         return cursor.lastrowid  # type: ignore[return-value]
+
+    def update_researcher_source_id(
+        self,
+        config_key: str,
+        openalex_id: str | None = None,
+        semantic_scholar_id: str | None = None,
+    ) -> None:
+        """Update a researcher's source-specific author ID in the DB.
+
+        Only updates the fields that are provided (non-None).
+        Does NOT touch the YAML config file.
+
+        Args:
+            config_key: Unique key identifying the researcher.
+            openalex_id: New OpenAlex author ID (or None to skip).
+            semantic_scholar_id: New S2 author ID (or None to skip).
+        """
+        updates: list[str] = []
+        params: list[str] = []
+        if openalex_id is not None:
+            updates.append("openalex_id = ?")
+            params.append(openalex_id)
+        if semantic_scholar_id is not None:
+            updates.append("semantic_scholar_id = ?")
+            params.append(semantic_scholar_id)
+        if not updates:
+            return
+        params.append(config_key)
+        self._conn.execute(
+            f"UPDATE researchers SET {', '.join(updates)}"
+            " WHERE config_key = ?",
+            params,
+        )
+        self._conn.commit()
 
     def insert_work(self, work: Work) -> int:
         """Insert a new work into the database.
@@ -825,48 +873,7 @@ class Store:
                WHERE wa.work_id = ?""",
             (work_id,),
         )
-        awards: list[Award] = []
-        for row in cursor:
-            funder = None
-            if row["funder_id"]:
-                funder = self._load_funder(row["funder_id"])
-
-            li = None
-            if row["lead_investigator_name"]:
-                parts = row["lead_investigator_name"].split(
-                    maxsplit=1
-                )
-                li = Investigator(
-                    given_name=parts[0] if parts else None,
-                    family_name=parts[1]
-                    if len(parts) > 1
-                    else None,
-                    orcid=row["lead_investigator_orcid"],
-                )
-
-            investigators = self._load_award_investigators(
-                row["id"]
-            )
-
-            awards.append(
-                Award(
-                    openalex_id=row["openalex_id"],
-                    display_name=row["display_name"],
-                    description=row["description"],
-                    funder_award_id=row["funder_award_id"],
-                    funder=funder,
-                    doi=row["doi"],
-                    amount=row["amount"],
-                    funding_type=row["funding_type"],
-                    start_year=row["start_year"],
-                    lead_investigator=li,
-                    investigators=investigators,
-                    funded_outputs_count=row[
-                        "funded_outputs_count"
-                    ],
-                )
-            )
-        return awards
+        return [self._row_to_award(row) for row in cursor]
 
     def _load_work_funders(self, work_id: int) -> list[Funder]:
         """Load funders linked to a work.
@@ -922,6 +929,43 @@ class Store:
             crossref_id=row["crossref_id"],
             country=row["country"],
             alternate_names=alt_names,
+        )
+
+    def _row_to_award(self, row: sqlite3.Row) -> Award:
+        """Convert a DB row to an Award model.
+
+        Args:
+            row: sqlite3.Row from awards table.
+
+        Returns:
+            Award instance with funder and investigators loaded.
+        """
+        funder = None
+        if row["funder_id"]:
+            funder = self._load_funder(row["funder_id"])
+        li = None
+        if row["lead_investigator_name"]:
+            parts = row["lead_investigator_name"].split(maxsplit=1)
+            li = Investigator(
+                given_name=parts[0] if parts else None,
+                family_name=parts[1] if len(parts) > 1 else None,
+                orcid=row["lead_investigator_orcid"],
+            )
+        return Award(
+            openalex_id=row["openalex_id"],
+            display_name=row["display_name"],
+            description=row["description"],
+            funder_award_id=row["funder_award_id"],
+            funder=funder,
+            doi=row["doi"],
+            amount=row["amount"],
+            funding_type=row["funding_type"],
+            start_year=row["start_year"],
+            lead_investigator=li,
+            investigators=self._load_award_investigators(
+                row["id"]
+            ),
+            funded_outputs_count=row["funded_outputs_count"],
         )
 
     def _load_award_investigators(
@@ -1005,44 +1049,7 @@ class Store:
                 "SELECT * FROM awards ORDER BY start_year DESC"
             )
 
-        awards: list[Award] = []
-        for row in cursor:
-            funder = None
-            if row["funder_id"]:
-                funder = self._load_funder(row["funder_id"])
-            li = None
-            if row["lead_investigator_name"]:
-                parts = row["lead_investigator_name"].split(
-                    maxsplit=1
-                )
-                li = Investigator(
-                    given_name=parts[0] if parts else None,
-                    family_name=parts[1]
-                    if len(parts) > 1
-                    else None,
-                    orcid=row["lead_investigator_orcid"],
-                )
-            awards.append(
-                Award(
-                    openalex_id=row["openalex_id"],
-                    display_name=row["display_name"],
-                    description=row["description"],
-                    funder_award_id=row["funder_award_id"],
-                    funder=funder,
-                    doi=row["doi"],
-                    amount=row["amount"],
-                    funding_type=row["funding_type"],
-                    start_year=row["start_year"],
-                    lead_investigator=li,
-                    investigators=self._load_award_investigators(
-                        row["id"]
-                    ),
-                    funded_outputs_count=row[
-                        "funded_outputs_count"
-                    ],
-                )
-            )
-        return awards
+        return [self._row_to_award(row) for row in cursor]
 
     def get_award_by_funder_award_id(
         self, funder_award_id: str
@@ -1072,33 +1079,7 @@ class Store:
         if row is None:
             return None
 
-        funder = None
-        if row["funder_id"]:
-            funder = self._load_funder(row["funder_id"])
-        li = None
-        if row["lead_investigator_name"]:
-            parts = row["lead_investigator_name"].split(maxsplit=1)
-            li = Investigator(
-                given_name=parts[0] if parts else None,
-                family_name=parts[1] if len(parts) > 1 else None,
-                orcid=row["lead_investigator_orcid"],
-            )
-        return Award(
-            openalex_id=row["openalex_id"],
-            display_name=row["display_name"],
-            description=row["description"],
-            funder_award_id=row["funder_award_id"],
-            funder=funder,
-            doi=row["doi"],
-            amount=row["amount"],
-            funding_type=row["funding_type"],
-            start_year=row["start_year"],
-            lead_investigator=li,
-            investigators=self._load_award_investigators(
-                row["id"]
-            ),
-            funded_outputs_count=row["funded_outputs_count"],
-        )
+        return self._row_to_award(row)
 
     def get_works_by_funder(
         self, funder_name: str, year: int | None = None
@@ -1283,17 +1264,26 @@ class Store:
         cursor = self._conn.execute(
             "SELECT * FROM researchers ORDER BY name"
         )
-        return [
-            Author(
-                name=row["name"],
-                openalex_id=row["openalex_id"],
-                semantic_scholar_id=row["semantic_scholar_id"],
-                orcid=row["orcid"],
-                affiliation=row["affiliation"],
-                is_lab_member=True,
+        results: list[Author] = []
+        for row in cursor:
+            groups_raw = row["groups"]
+            groups = (
+                orjson.loads(groups_raw) if groups_raw else []
             )
-            for row in cursor
-        ]
+            results.append(
+                Author(
+                    name=row["name"],
+                    openalex_id=row["openalex_id"],
+                    semantic_scholar_id=row["semantic_scholar_id"],
+                    orcid=row["orcid"],
+                    affiliation=row["affiliation"],
+                    is_lab_member=True,
+                    start_date=row["start_date"],
+                    end_date=row["end_date"],
+                    groups=groups,
+                )
+            )
+        return results
 
     def get_researcher_id(self, name: str) -> int | None:
         """Find a researcher ID by name (case-insensitive partial match).

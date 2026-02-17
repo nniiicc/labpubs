@@ -6,6 +6,7 @@ import bibtexparser
 from bibtexparser.bwriter import BibTexWriter
 
 from labpubs.models import Work, WorkType
+from labpubs.normalize import split_author_name
 
 _TYPE_MAP: dict[WorkType, str] = {
     WorkType.JOURNAL_ARTICLE: "article",
@@ -30,9 +31,9 @@ def _make_bibtex_key(work: Work) -> str:
     """
     surname = "unknown"
     if work.authors:
-        parts = work.authors[0].name.split()
-        if parts:
-            surname = re.sub(r"[^\w]", "", parts[-1].lower())
+        _, family = split_author_name(work.authors[0].name)
+        if family:
+            surname = re.sub(r"[^\w]", "", family.lower())
 
     year = str(work.year) if work.year else "nd"
 
@@ -61,11 +62,11 @@ def _format_authors(work: Work) -> str:
     """
     names: list[str] = []
     for author in work.authors:
-        parts = author.name.strip().split()
-        if len(parts) >= 2:
-            names.append(f"{parts[-1]}, {' '.join(parts[:-1])}")
-        elif parts:
-            names.append(parts[0])
+        given, family = split_author_name(author.name)
+        if given and family:
+            names.append(f"{family}, {given}")
+        elif family:
+            names.append(family)
     return " and ".join(names)
 
 

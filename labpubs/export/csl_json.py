@@ -6,6 +6,7 @@ Produces output compatible with pandoc-citeproc and Zotero.
 from typing import Any
 
 from labpubs.models import Work, WorkType
+from labpubs.normalize import split_author_name
 
 _CSL_TYPE_MAP: dict[WorkType, str] = {
     WorkType.JOURNAL_ARTICLE: "article-journal",
@@ -30,13 +31,11 @@ def work_to_csl(work: Work) -> dict[str, Any]:
 
     authors = []
     for a in work.authors:
-        parts = a.name.strip().split()
-        if len(parts) >= 2:
-            authors.append(
-                {"family": parts[-1], "given": " ".join(parts[:-1])}
-            )
-        elif parts:
-            authors.append({"literal": parts[0]})
+        given, family = split_author_name(a.name)
+        if given and family:
+            authors.append({"family": family, "given": given})
+        elif family:
+            authors.append({"literal": family})
 
     entry: dict[str, Any] = {
         "type": csl_type,

@@ -135,10 +135,16 @@ class SemanticScholarBackend:
             None, partial(self._fetch_sync, author_id, since)
         )
 
+    _PAPER_FIELDS = [
+        "title", "authors", "publicationDate", "year", "venue",
+        "journal", "publicationTypes", "externalIds", "abstract",
+        "isOpenAccess", "openAccessPdf", "citationCount", "paperId",
+    ]
+
     def _fetch_sync(
         self, author_id: str, since: date | None
     ) -> list[Work]:
-        """Synchronous fetch implementation.
+        """Synchronous fetch implementation using paginated endpoint.
 
         Args:
             author_id: Semantic Scholar author ID.
@@ -149,11 +155,18 @@ class SemanticScholarBackend:
         """
         results: list[Work] = []
         try:
-            author = self._client.get_author(author_id)
-            papers = getattr(author, "papers", []) or []
+            papers = self._client.get_author_papers(
+                author_id,
+                fields=self._PAPER_FIELDS,
+                limit=1000,
+            )
             for paper in papers:
                 work = _s2_paper_to_model(paper)
-                if since and work.publication_date and work.publication_date < since:
+                if (
+                    since
+                    and work.publication_date
+                    and work.publication_date < since
+                ):
                     continue
                 results.append(work)
         except Exception:
@@ -162,6 +175,129 @@ class SemanticScholarBackend:
                 author_id,
             )
         return results
+
+    async def resolve_and_fetch_works(
+        self,
+        stored_id: str | None,
+        orcid: str | None,
+        since: date | None = None,
+        name: str | None = None,
+    ) -> tuple[list[Work], str | None]:
+        """Fetch works from all known S2 IDs for a researcher.
+
+        Resolution strategy:
+        1. ORCID lookup (most reliable when linked)
+        2. Name-based search fallback (when ORCID not linked in S2)
+        3. Stored ID (always used if available)
+
+        Fetches works from ALL discovered IDs and deduplicates by S2
+        paper ID.
+
+        Args:
+            stored_id: S2 author ID from config/DB (may be stale).
+            orcid: Researcher ORCID for resolving current canonical ID.
+            since: Optional date filter.
+            name: Researcher name for fallback search when ORCID fails.
+
+        Returns:
+            Tuple of (deduplicated works, best resolved S2 author ID
+            or None).
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            partial(
+                self._resolve_and_fetch_sync,
+                stored_id,
+                orcid,
+                since,
+                name,
+            ),
+        )
+
+    def _resolve_and_fetch_sync(
+        self,
+        stored_id: str | None,
+        orcid: str | None,
+        since: date | None,
+        name: str | None = None,
+    ) -> tuple[list[Work], str | None]:
+        """Synchronous resolve-and-fetch implementation."""
+        author_ids: set[str] = set()
+        resolved_id: str | None = None
+
+        if stored_id:
+            author_ids.add(stored_id)
+
+        # Strategy 1: Resolve via ORCID
+        orcid_found = False
+        if orcid:
+            try:
+                author = self._client.get_author(f"ORCID:{orcid}")
+                if author:
+                    resolved_id = getattr(author, "authorId", None)
+                    if resolved_id:
+                        orcid_found = True
+                        author_ids.add(resolved_id)
+                        if (
+                            stored_id
+                            and resolved_id != stored_id
+                        ):
+                            logger.warning(
+                                "S2 profile fragmentation detected "
+                                "for ORCID %s: stored ID %s, "
+                                "ORCID-resolved ID %s",
+                                orcid,
+                                stored_id,
+                                resolved_id,
+                            )
+            except Exception:
+                logger.debug(
+                    "ORCID %s not found in Semantic Scholar", orcid
+                )
+
+        # Strategy 2: Name-based search fallback
+        if not orcid_found and name:
+            try:
+                results = self._client.search_author(name, limit=5)
+                count = 0
+                for a in results or []:
+                    if count >= 5:
+                        break
+                    count += 1
+                    aid = getattr(a, "authorId", None)
+                    if aid and aid != stored_id:
+                        author_ids.add(aid)
+                        if resolved_id is None:
+                            resolved_id = aid
+                        logger.debug(
+                            "S2 name search found candidate %s "
+                            "for '%s'",
+                            aid,
+                            name,
+                        )
+            except Exception:
+                logger.debug(
+                    "S2 name search failed for '%s'", name
+                )
+
+        if not author_ids:
+            return [], None
+
+        # Fetch from all known IDs, dedup by paper ID
+        all_works: list[Work] = []
+        seen_paper_ids: set[str] = set()
+        for aid in author_ids:
+            works = self._fetch_sync(aid, since)
+            for work in works:
+                pid = work.semantic_scholar_id
+                if pid and pid in seen_paper_ids:
+                    continue
+                if pid:
+                    seen_paper_ids.add(pid)
+                all_works.append(work)
+
+        return all_works, resolved_id
 
     async def resolve_author_by_orcid(
         self, orcid: str

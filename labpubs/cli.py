@@ -4,14 +4,20 @@ Wraps the core engine for use in cron jobs, CI pipelines, and
 interactive terminal use.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import sys
+from typing import TYPE_CHECKING
 
 import click
 import orjson
 
 from labpubs.core import LabPubs
+
+if TYPE_CHECKING:
+    from labpubs.resolve import ResolveResult
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +219,21 @@ def researchers(ctx: click.Context) -> None:
         if r.semantic_scholar_id:
             ids.append(f"S2: {r.semantic_scholar_id}")
         id_str = f" ({', '.join(ids)})" if ids else ""
-        click.echo(f"  {r.name}{id_str}")
+
+        # Active date range
+        if r.start_date and r.end_date:
+            date_str = f" [{r.start_date} \u2013 {r.end_date}]"
+        elif r.start_date:
+            date_str = f" [active since {r.start_date}]"
+        else:
+            date_str = ""
+
+        # Group membership
+        group_str = (
+            f" {{{', '.join(r.groups)}}}" if r.groups else ""
+        )
+
+        click.echo(f"  {r.name}{id_str}{date_str}{group_str}")
 
 
 @main.command()
@@ -604,7 +624,6 @@ def init_config(
     from pathlib import Path
 
     from labpubs.resolve import (
-        ResolveResult,
         generate_config_yaml,
         merge_into_existing,
         resolve_researchers_from_csv,
@@ -662,7 +681,7 @@ def init_config(
 
 
 def _review_openalex(
-    result: "ResolveResult", non_interactive: bool
+    result: ResolveResult, non_interactive: bool
 ) -> None:
     """Review and optionally select an OpenAlex ID."""
     if result.openalex_id:
@@ -700,7 +719,7 @@ def _review_openalex(
 
 
 def _review_s2(
-    result: "ResolveResult", non_interactive: bool
+    result: ResolveResult, non_interactive: bool
 ) -> None:
     """Review and optionally select a Semantic Scholar ID."""
     if result.semantic_scholar_id:

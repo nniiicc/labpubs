@@ -92,6 +92,9 @@ class LabPubs:
                 semantic_scholar_id=rc.semantic_scholar_id,
                 orcid=rc.orcid,
                 affiliation=rc.affiliation,
+                start_date=rc.start_date,
+                end_date=rc.end_date,
+                groups=rc.groups,
             )
 
     async def sync(
@@ -205,6 +208,9 @@ class LabPubs:
     ) -> list[Work]:
         """Fetch works from all configured sources for one researcher.
 
+        Uses ORCID resolution to discover current author IDs, then
+        fetches from all known IDs (stored + ORCID-resolved) per source.
+
         Args:
             researcher_config: Researcher configuration.
             since: Optional date filter.
@@ -212,43 +218,106 @@ class LabPubs:
         Returns:
             Combined list of works from all sources.
         """
-        tasks = []
+        tasks: list[tuple[str, Any]] = []
 
-        if "openalex" in self.sources and researcher_config.openalex_id:
-            tasks.append(
-                self.sources["openalex"].fetch_works_for_author(
-                    researcher_config.openalex_id, since
-                )
-            )
-
-        if (
-            "semantic_scholar" in self.sources
-            and researcher_config.semantic_scholar_id
+        if "openalex" in self.sources and (
+            researcher_config.openalex_id or researcher_config.orcid
         ):
-            tasks.append(
+            tasks.append((
+                "openalex",
+                self.sources["openalex"].resolve_and_fetch_works(
+                    stored_id=researcher_config.openalex_id,
+                    orcid=researcher_config.orcid,
+                    since=since,
+                    name=researcher_config.name,
+                ),
+            ))
+
+        if "semantic_scholar" in self.sources and (
+            researcher_config.semantic_scholar_id
+            or researcher_config.orcid
+        ):
+            tasks.append((
+                "semantic_scholar",
                 self.sources[
                     "semantic_scholar"
-                ].fetch_works_for_author(
-                    researcher_config.semantic_scholar_id, since
-                )
-            )
+                ].resolve_and_fetch_works(
+                    stored_id=researcher_config.semantic_scholar_id,
+                    orcid=researcher_config.orcid,
+                    since=since,
+                    name=researcher_config.name,
+                ),
+            ))
 
         if not tasks:
             logger.warning(
-                "No source IDs configured for researcher '%s'",
+                "No source IDs or ORCID configured for "
+                "researcher '%s'",
                 researcher_config.name,
             )
             return []
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        source_names = [t[0] for t in tasks]
+        coros = [t[1] for t in tasks]
+        results = await asyncio.gather(*coros, return_exceptions=True)
+
         all_works: list[Work] = []
-        for result in results:
+        for source_name, result in zip(source_names, results):
             if isinstance(result, BaseException):
-                logger.error("Source fetch failed: %s", result)
+                logger.error(
+                    "Source fetch failed for %s: %s",
+                    source_name,
+                    result,
+                )
                 continue
-            all_works.extend(result)
+            works, resolved_id = result
+            all_works.extend(works)
+
+            if resolved_id:
+                self._maybe_update_researcher_id(
+                    researcher_config, source_name, resolved_id
+                )
 
         return all_works
+
+    def _maybe_update_researcher_id(
+        self,
+        researcher_config: ResearcherConfig,
+        source_name: str,
+        resolved_id: str,
+    ) -> None:
+        """Update the researcher's source ID in the DB if stale.
+
+        Only updates the database, never the YAML config file.
+        """
+        if source_name == "semantic_scholar":
+            stored = researcher_config.semantic_scholar_id
+            if stored and stored == resolved_id:
+                return
+            logger.info(
+                "Updating DB S2 ID for '%s': %s -> %s",
+                researcher_config.name,
+                stored,
+                resolved_id,
+            )
+            self.store.update_researcher_source_id(
+                config_key=researcher_config.name,
+                semantic_scholar_id=resolved_id,
+            )
+        elif source_name == "openalex":
+            stored = researcher_config.openalex_id
+            if stored and stored == resolved_id:
+                return
+            logger.info(
+                "Updating DB OpenAlex ID for '%s': %s -> %s",
+                researcher_config.name,
+                stored,
+                resolved_id,
+            )
+            self.store.update_researcher_source_id(
+                config_key=researcher_config.name,
+                openalex_id=resolved_id,
+            )
 
     def get_works(
         self,

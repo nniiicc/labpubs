@@ -14,18 +14,32 @@ semantic_scholar_api_key: null
 database_path: "~/.labpubs/labpubs.db"
 
 # Researchers to track
+# Each researcher can have optional start_date/end_date (ISO format)
+# and belong to one or more groups.
+# If end_date is omitted, the researcher is considered still active.
 researchers:
   - name: "Jane Doe"
     openalex_id: "A5023888391"
     semantic_scholar_id: "1741101"
     orcid: "0000-0002-1234-5678"
+    start_date: "2020-09-01"
+    groups:
+      - faculty
+      - NLP
 
   - name: "John Smith"
     openalex_id: "A5012345678"
+    start_date: "2019-09-01"
+    end_date: "2023-06-30"
+    groups:
+      - IR
 
   # If you only have a name, run `labpubs setup` to resolve IDs
   - name: "Alice Johnson"
     affiliation: "University of Washington"
+    start_date: "2024-01-15"
+    groups:
+      - PhD students
 
 # Sources to query (order = priority for metadata conflicts)
 sources:

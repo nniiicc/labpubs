@@ -12,6 +12,7 @@
 - **Multi-source sync** -- query OpenAlex, Semantic Scholar, and Crossref by author ID
 - **Deduplication** -- fuzzy-match titles and merge metadata across sources
 - **Funding tracking** -- parse grants, funders, and award IDs from OpenAlex
+- **Lab member management** -- track active dates (start/end) and group membership for each researcher
 - **Export formats** -- BibTeX, CSL-JSON, CV citation strings, JSON, grant reports (Markdown/CSV)
 - **GitHub Issues integration** -- create verification issues per publication, parse enrichments (code/data links) from closed issues
 - **MCP server** -- 17 tools for querying publications from AI assistants
@@ -60,9 +61,29 @@ semantic_scholar_api_key: your-key-here   # optional
 labpubs init members.csv --lab-name "My Research Lab" --openalex-email you@university.edu
 ```
 
-This resolves OpenAlex and Semantic Scholar IDs from ORCIDs and writes `labpubs.yaml`. The CSV needs `name` and `orcid` columns. See `labpubs init --help` for all options.
+This resolves OpenAlex and Semantic Scholar IDs from ORCIDs and writes `labpubs.yaml`. The CSV needs a `name` column; optional columns include `orcid`, `openalex_id`, `semantic_scholar_id`, `affiliation`, `start_date`, `end_date`, and `groups` (comma-separated). See `labpubs init --help` for all options.
 
 Or create `labpubs.yaml` by hand (see [configuration docs](https://labpubs.readthedocs.io/en/latest/configuration.html)).
+
+### Researcher Configuration
+
+Each researcher in `labpubs.yaml` can have active dates and group membership:
+
+```yaml
+researchers:
+  - name: "Jane Doe"
+    orcid: "0000-0002-1234-5678"
+    start_date: "2020-09-01"        # when they joined
+    groups:                         # arbitrary group labels
+      - faculty
+      - NLP
+
+  - name: "John Smith"
+    start_date: "2019-09-01"
+    end_date: "2023-06-30"          # omit if still active
+    groups:
+      - IR
+```
 
 2. Sync publications and list results:
 

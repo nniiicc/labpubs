@@ -1,12 +1,8 @@
 """Tests for deduplication logic."""
 
-from labpubs.dedup import (
-    _normalize_doi,
-    _normalize_title,
-    find_match,
-    merge_works,
-)
+from labpubs.dedup import find_match, merge_works
 from labpubs.models import Author, Source, Work
+from labpubs.normalize import normalize_doi, normalize_title
 
 
 class TestNormalizeDoi:
@@ -14,19 +10,19 @@ class TestNormalizeDoi:
 
     def test_strips_url_prefix(self) -> None:
         """DOI URL prefixes are removed."""
-        assert _normalize_doi("https://doi.org/10.1234/test") == "10.1234/test"
+        assert normalize_doi("https://doi.org/10.1234/test") == "10.1234/test"
 
     def test_lowercases(self) -> None:
         """DOIs are lowercased."""
-        assert _normalize_doi("10.1234/TEST") == "10.1234/test"
+        assert normalize_doi("10.1234/TEST") == "10.1234/test"
 
     def test_none_passthrough(self) -> None:
         """None input returns None."""
-        assert _normalize_doi(None) is None
+        assert normalize_doi(None) is None
 
     def test_empty_string(self) -> None:
         """Empty string returns None."""
-        assert _normalize_doi("") is None
+        assert normalize_doi("") is None
 
 
 class TestNormalizeTitle:
@@ -34,17 +30,17 @@ class TestNormalizeTitle:
 
     def test_lowercases_and_strips_punctuation(self) -> None:
         """Titles are lowercased with punctuation removed."""
-        result = _normalize_title("Hello, World!")
+        result = normalize_title("Hello, World!")
         assert result == "hello world"
 
     def test_collapses_whitespace(self) -> None:
         """Multiple spaces are collapsed."""
-        result = _normalize_title("hello   world")
+        result = normalize_title("hello   world")
         assert result == "hello world"
 
     def test_strips_accents(self) -> None:
         """Diacritical marks are removed."""
-        result = _normalize_title("cafe\u0301")
+        result = normalize_title("cafe\u0301")
         assert result == "cafe"
 
 

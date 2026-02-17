@@ -37,6 +37,9 @@ class Author(BaseModel):
     orcid: str | None = None
     affiliation: str | None = None
     is_lab_member: bool = False
+    start_date: str | None = None
+    end_date: str | None = None
+    groups: list[str] = Field(default_factory=list)
 
 
 class Funder(BaseModel):

@@ -8,6 +8,7 @@ generates a ``labpubs.yaml`` configuration file.
 import asyncio
 import csv
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import yaml
@@ -30,6 +31,9 @@ _S2_ALIASES = {
     "semantic_scholar",
 }
 _AFF_ALIASES = {"affiliation", "institution"}
+_START_ALIASES = {"start_date", "start", "joined"}
+_END_ALIASES = {"end_date", "end", "left", "departed"}
+_GROUP_ALIASES = {"groups", "group", "team", "teams"}
 
 
 class ResolveResult(BaseModel):
@@ -38,6 +42,9 @@ class ResolveResult(BaseModel):
     name: str
     orcid: str | None = None
     affiliation: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    groups: list[str] = []
 
     openalex_id: str | None = None
     semantic_scholar_id: str | None = None
@@ -86,6 +93,9 @@ def parse_csv(csv_path: str | Path) -> list[dict[str, str]]:
         col_oa = _match_column(headers, _OA_ALIASES)
         col_s2 = _match_column(headers, _S2_ALIASES)
         col_aff = _match_column(headers, _AFF_ALIASES)
+        col_start = _match_column(headers, _START_ALIASES)
+        col_end = _match_column(headers, _END_ALIASES)
+        col_groups = _match_column(headers, _GROUP_ALIASES)
 
         if col_name is None:
             raise ValueError(
@@ -96,6 +106,14 @@ def parse_csv(csv_path: str | Path) -> list[dict[str, str]]:
             name = (row.get(col_name) or "").strip()
             if not name:
                 continue
+            groups_raw = (
+                row.get(col_groups, "") if col_groups else ""
+            ).strip()
+            groups = (
+                [g.strip() for g in groups_raw.split(",") if g.strip()]
+                if groups_raw
+                else []
+            )
             rows.append(
                 {
                     "name": name,
@@ -111,6 +129,15 @@ def parse_csv(csv_path: str | Path) -> list[dict[str, str]]:
                     "affiliation": (
                         row.get(col_aff, "") if col_aff else ""
                     ).strip(),
+                    "start_date": (
+                        row.get(col_start, "")
+                        if col_start
+                        else ""
+                    ).strip(),
+                    "end_date": (
+                        row.get(col_end, "") if col_end else ""
+                    ).strip(),
+                    "groups": ",".join(groups),
                 }
             )
     return rows
@@ -183,7 +210,7 @@ async def resolve_researchers_from_csv(
     openalex_backend: OpenAlexBackend | None = None,
     s2_backend: SemanticScholarBackend | None = None,
     rate_limit_delay: float = 0.5,
-    progress_callback: object = None,
+    progress_callback: Callable[[str, int, int], None] | None = None,
 ) -> list[ResolveResult]:
     """Resolve IDs for every researcher in a CSV.
 
@@ -203,7 +230,7 @@ async def resolve_researchers_from_csv(
 
     for i, row in enumerate(rows):
         if progress_callback:
-            progress_callback(row["name"], i, len(rows))  # type: ignore[operator]
+            progress_callback(row["name"], i, len(rows))
 
         # Skip lookup if IDs are already provided in the CSV.
         pre_oa = row.get("openalex_id", "")
@@ -224,6 +251,19 @@ async def resolve_researchers_from_csv(
         if pre_s2:
             r.semantic_scholar_id = pre_s2
             r.s2_confident = True
+
+        # Carry forward dates and groups from CSV.
+        if row.get("start_date"):
+            r.start_date = row["start_date"]
+        if row.get("end_date"):
+            r.end_date = row["end_date"]
+        groups_raw = row.get("groups", "")
+        if groups_raw:
+            r.groups = [
+                g.strip()
+                for g in groups_raw.split(",")
+                if g.strip()
+            ]
 
         results.append(r)
         await asyncio.sleep(rate_limit_delay)
@@ -252,7 +292,7 @@ def generate_config_yaml(
     """
     researchers = []
     for r in results:
-        entry: dict[str, str | None] = {"name": r.name}
+        entry: dict = {"name": r.name}
         if r.orcid:
             entry["orcid"] = r.orcid
         if r.openalex_id:
@@ -261,6 +301,12 @@ def generate_config_yaml(
             entry["semantic_scholar_id"] = r.semantic_scholar_id
         if r.affiliation:
             entry["affiliation"] = r.affiliation
+        if r.start_date:
+            entry["start_date"] = r.start_date
+        if r.end_date:
+            entry["end_date"] = r.end_date
+        if r.groups:
+            entry["groups"] = r.groups
         researchers.append(entry)
 
     config: dict = {
@@ -320,8 +366,14 @@ def merge_into_existing(
                 "semantic_scholar_id"
             ):
                 match["semantic_scholar_id"] = r.semantic_scholar_id
+            if r.start_date and not match.get("start_date"):
+                match["start_date"] = r.start_date
+            if r.end_date and not match.get("end_date"):
+                match["end_date"] = r.end_date
+            if r.groups and not match.get("groups"):
+                match["groups"] = r.groups
         else:
-            entry: dict[str, str | None] = {"name": r.name}
+            entry: dict = {"name": r.name}
             if r.orcid:
                 entry["orcid"] = r.orcid
             if r.openalex_id:
@@ -330,6 +382,12 @@ def merge_into_existing(
                 entry["semantic_scholar_id"] = r.semantic_scholar_id
             if r.affiliation:
                 entry["affiliation"] = r.affiliation
+            if r.start_date:
+                entry["start_date"] = r.start_date
+            if r.end_date:
+                entry["end_date"] = r.end_date
+            if r.groups:
+                entry["groups"] = r.groups
             existing.append(entry)
 
     return yaml.dump(

@@ -1,7 +1,7 @@
 """Tests for labpubs.resolve -- CSV parsing, ID resolution, config generation."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 import yaml
@@ -15,7 +15,6 @@ from labpubs.resolve import (
     resolve_researcher,
     resolve_researchers_from_csv,
 )
-
 
 # ---------------------------------------------------------------------------
 # CSV parsing
@@ -70,6 +69,43 @@ class TestParseCSV:
         )
         rows = parse_csv(csv)
         assert rows[0]["name"] == "Jane"
+
+    def test_start_end_date_columns(self, tmp_path: Path) -> None:
+        csv = tmp_path / "members.csv"
+        csv.write_text(
+            "name,start_date,end_date\n"
+            "Jane Doe,2020-09-01,2023-06-30\n"
+            "John Smith,2024-01-15,\n"
+        )
+        rows = parse_csv(csv)
+        assert rows[0]["start_date"] == "2020-09-01"
+        assert rows[0]["end_date"] == "2023-06-30"
+        assert rows[1]["start_date"] == "2024-01-15"
+        assert rows[1]["end_date"] == ""
+
+    def test_start_date_aliases(self, tmp_path: Path) -> None:
+        csv = tmp_path / "members.csv"
+        csv.write_text("name,joined\nJane,2022-01-01\n")
+        rows = parse_csv(csv)
+        assert rows[0]["start_date"] == "2022-01-01"
+
+    def test_groups_column(self, tmp_path: Path) -> None:
+        csv = tmp_path / "members.csv"
+        csv.write_text(
+            "name,groups\n"
+            'Jane Doe,"NLP, IR"\n'
+            "John Smith,faculty\n"
+            "Alice,,\n"
+        )
+        rows = parse_csv(csv)
+        assert rows[0]["groups"] == "NLP,IR"
+        assert rows[1]["groups"] == "faculty"
+
+    def test_groups_alias_team(self, tmp_path: Path) -> None:
+        csv = tmp_path / "members.csv"
+        csv.write_text("name,team\nJane,NLP\n")
+        rows = parse_csv(csv)
+        assert rows[0]["groups"] == "NLP"
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +225,31 @@ class TestGenerateConfig:
         assert len(config["researchers"]) == 2
         assert config["researchers"][0]["openalex_id"] == "A123"
         assert "openalex_id" not in config["researchers"][1]
+
+    def test_includes_dates_and_groups(self) -> None:
+        results = [
+            ResolveResult(
+                name="Jane Doe",
+                start_date="2020-09-01",
+                end_date="2023-06-30",
+                groups=["NLP", "faculty"],
+            ),
+        ]
+        yaml_str = generate_config_yaml(results)
+        config = yaml.safe_load(yaml_str)
+        r = config["researchers"][0]
+        assert r["start_date"] == "2020-09-01"
+        assert r["end_date"] == "2023-06-30"
+        assert r["groups"] == ["NLP", "faculty"]
+
+    def test_omits_empty_dates_and_groups(self) -> None:
+        results = [ResolveResult(name="Jane Doe")]
+        yaml_str = generate_config_yaml(results)
+        config = yaml.safe_load(yaml_str)
+        r = config["researchers"][0]
+        assert "start_date" not in r
+        assert "end_date" not in r
+        assert "groups" not in r
 
 
 # ---------------------------------------------------------------------------

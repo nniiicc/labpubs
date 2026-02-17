@@ -483,5 +483,11 @@ def add_issue_labels(
             )
             return False
         return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except FileNotFoundError:
+        logger.error(
+            "gh CLI not found. Install: https://cli.github.com"
+        )
+        return False
+    except subprocess.TimeoutExpired:
+        logger.error("gh issue edit timed out")
         return False

@@ -38,3 +38,28 @@ class SourceBackend(Protocol):
             List of candidate Author objects with source-specific IDs.
         """
         ...
+
+    async def resolve_and_fetch_works(
+        self,
+        stored_id: str | None,
+        orcid: str | None,
+        since: date | None = None,
+        name: str | None = None,
+    ) -> tuple[list[Work], str | None]:
+        """Fetch works using ORCID resolution to discover all author IDs.
+
+        Resolves the current canonical author ID via ORCID, then fetches
+        works from both the stored ID and the ORCID-resolved ID (if
+        different).  Deduplicates by source-specific work ID.
+
+        Args:
+            stored_id: Source-specific author ID from config/DB.
+            orcid: Researcher ORCID for resolving current canonical ID.
+            since: Optional date filter.
+            name: Researcher name for fallback search when ORCID fails.
+
+        Returns:
+            Tuple of (deduplicated works, ORCID-resolved author ID or
+            None).
+        """
+        ...
