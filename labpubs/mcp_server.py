@@ -112,9 +112,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
         for w in works:
             venue = w.venue or "venue unknown"
             doi = f" | DOI: {w.doi}" if w.doi else ""
-            lines.append(
-                f"- **{w.title}** ({w.year}) -- {venue}{doi}"
-            )
+            lines.append(f"- **{w.title}** ({w.year}) -- {venue}{doi}")
         return "\n".join(lines)
 
     @mcp.tool(
@@ -141,9 +139,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
         lines = [f"New publications (last {days} days):"]
         for w in works:
             venue = w.venue or "venue unknown"
-            lines.append(
-                f"- **{w.title}** ({w.year}) -- {venue}"
-            )
+            lines.append(f"- **{w.title}** ({w.year}) -- {venue}")
         return "\n".join(lines)
 
     @mcp.tool(
@@ -165,9 +161,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             researcher: Name of researcher. Omit for all.
             year: Filter to specific year. Omit for all.
         """
-        return engine.export_bibtex(
-            researcher=researcher, year=year
-        )
+        return engine.export_bibtex(researcher=researcher, year=year)
 
     @mcp.tool(
         name="labpubs_export_cv_entries",
@@ -225,9 +219,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             lines.append("\n**New publications:**")
             for w in result.new_works:
                 venue = w.venue or "venue unknown"
-                lines.append(
-                    f"- {w.title} ({w.year}) -- {venue}"
-                )
+                lines.append(f"- {w.title} ({w.year}) -- {venue}")
         if result.errors:
             lines.append(f"\nErrors: {len(result.errors)}")
             for e in result.errors:
@@ -243,9 +235,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             openWorldHint=False,
         ),
     )
-    async def search_publications(
-        query: str, limit: int = 20
-    ) -> str:
+    async def search_publications(query: str, limit: int = 20) -> str:
         """Full-text search across stored publication titles and abstracts.
 
         Args:
@@ -258,9 +248,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
         lines: list[str] = []
         for w in works:
             venue = w.venue or "venue unknown"
-            lines.append(
-                f"- **{w.title}** ({w.year}) -- {venue}"
-            )
+            lines.append(f"- **{w.title}** ({w.year}) -- {venue}")
         return "\n".join(lines)
 
     @mcp.tool(
@@ -279,9 +267,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             return "No funders found."
         lines: list[str] = []
         for funder, count in funder_counts:
-            lines.append(
-                f"- **{funder.name}** ({count} publications)"
-            )
+            lines.append(f"- **{funder.name}** ({count} publications)")
         return "\n".join(lines)
 
     @mcp.tool(
@@ -310,8 +296,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             grant_id = a.funder_award_id or "N/A"
             name = a.display_name or "Untitled"
             lines.append(
-                f"- [{grant_id}] **{name}** -- {funder_name}"
-                f" ({a.start_year or '?'})"
+                f"- [{grant_id}] **{name}** -- {funder_name} ({a.start_year or '?'})"
             )
         return "\n".join(lines)
 
@@ -346,9 +331,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             lines.append(f"**Start Year:** {award.start_year}")
         if award.lead_investigator:
             li = award.lead_investigator
-            name = (
-                f"{li.given_name or ''} {li.family_name or ''}"
-            ).strip()
+            name = (f"{li.given_name or ''} {li.family_name or ''}").strip()
             lines.append(f"**PI:** {name}")
             if li.orcid:
                 lines.append(f"**PI ORCID:** {li.orcid}")
@@ -391,9 +374,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
         for w in works:
             venue = w.venue or "venue unknown"
             doi = f" | DOI: {w.doi}" if w.doi else ""
-            lines.append(
-                f"- **{w.title}** ({w.year}) -- {venue}{doi}"
-            )
+            lines.append(f"- **{w.title}** ({w.year}) -- {venue}{doi}")
         return "\n".join(lines)
 
     @mcp.tool(
@@ -466,19 +447,14 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             works = [
                 w
                 for w in works
-                if any(
-                    author.lower() in a.name.lower()
-                    for a in w.authors
-                )
+                if any(author.lower() in a.name.lower() for a in w.authors)
             ]
         if not works:
             return "All publications are verified."
         lines: list[str] = []
         for w in works:
             venue = w.venue or "venue unknown"
-            lines.append(
-                f"- **{w.title}** ({w.year}) -- {venue}"
-            )
+            lines.append(f"- **{w.title}** ({w.year}) -- {venue}")
         return "\n".join(lines)
 
     @mcp.tool(
@@ -507,18 +483,13 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             works = engine.get_works_with_data()
         else:
             works = engine.get_works()
-            works = [
-                w for w in works if w.linked_resources
-            ]
+            works = [w for w in works if w.linked_resources]
 
         if author:
             works = [
                 w
                 for w in works
-                if any(
-                    author.lower() in a.name.lower()
-                    for a in w.authors
-                )
+                if any(author.lower() in a.name.lower() for a in w.authors)
             ]
 
         if not works:
@@ -530,9 +501,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
             for res in w.linked_resources:
                 if resource_type and res.resource_type != resource_type:
                     continue
-                lines.append(
-                    f"  - [{res.resource_type}] {res.url}"
-                )
+                lines.append(f"  - [{res.resource_type}] {res.url}")
         return "\n".join(lines)
 
     @mcp.tool(
@@ -572,9 +541,7 @@ def create_mcp_server(config_path: str | Path = "labpubs.yaml") -> FastMCP:
         labels = get_issue_labels(work, gh_config)
         assignees = get_issue_assignees(work, gh_config)
 
-        url = create_github_issue(
-            gh_config.repo, title, body, labels, assignees
-        )
+        url = create_github_issue(gh_config.repo, title, body, labels, assignees)
         if url:
             return f"Issue created: {url}"
         return "Failed to create issue. Check gh CLI auth."

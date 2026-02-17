@@ -39,8 +39,23 @@ def _make_bibtex_key(work: Work) -> str:
 
     title_word = "untitled"
     stop_words = {
-        "a", "an", "the", "of", "in", "on", "at", "to", "for",
-        "and", "or", "but", "is", "are", "was", "were", "with",
+        "a",
+        "an",
+        "the",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "and",
+        "or",
+        "but",
+        "is",
+        "are",
+        "was",
+        "were",
+        "with",
     }
     for word in work.title.split():
         cleaned = re.sub(r"[^\w]", "", word.lower())

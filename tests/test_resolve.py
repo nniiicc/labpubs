@@ -43,9 +43,7 @@ class TestParseCSV:
 
     def test_header_aliases(self, tmp_path: Path) -> None:
         csv = tmp_path / "members.csv"
-        csv.write_text(
-            "Full Name,ORCID-ID\n" "John Smith,0000-0002-0000-0000\n"
-        )
+        csv.write_text("Full Name,ORCID-ID\nJohn Smith,0000-0002-0000-0000\n")
         rows = parse_csv(csv)
         assert rows[0]["name"] == "John Smith"
         assert rows[0]["orcid"] == "0000-0002-0000-0000"
@@ -64,9 +62,7 @@ class TestParseCSV:
 
     def test_utf8_bom(self, tmp_path: Path) -> None:
         csv = tmp_path / "members.csv"
-        csv.write_bytes(
-            b"\xef\xbb\xbfname,orcid\nJane,111\n"
-        )
+        csv.write_bytes(b"\xef\xbb\xbfname,orcid\nJane,111\n")
         rows = parse_csv(csv)
         assert rows[0]["name"] == "Jane"
 
@@ -91,12 +87,7 @@ class TestParseCSV:
 
     def test_groups_column(self, tmp_path: Path) -> None:
         csv = tmp_path / "members.csv"
-        csv.write_text(
-            "name,groups\n"
-            'Jane Doe,"NLP, IR"\n'
-            "John Smith,faculty\n"
-            "Alice,,\n"
-        )
+        csv.write_text('name,groups\nJane Doe,"NLP, IR"\nJohn Smith,faculty\nAlice,,\n')
         rows = parse_csv(csv)
         assert rows[0]["groups"] == "NLP,IR"
         assert rows[1]["groups"] == "faculty"
@@ -126,9 +117,7 @@ class TestResolveResearcher:
             orcid="0000-1",
         )
 
-        result = await resolve_researcher(
-            "Jane Doe", "0000-1", None, oa, s2
-        )
+        result = await resolve_researcher("Jane Doe", "0000-1", None, oa, s2)
         assert result.openalex_id == "A123"
         assert result.openalex_confident is True
         assert result.semantic_scholar_id == "S456"
@@ -147,9 +136,7 @@ class TestResolveResearcher:
         s2.resolve_author_by_orcid.return_value = None
         s2.resolve_author_id.return_value = []
 
-        result = await resolve_researcher(
-            "Jane Doe", "0000-1", "MIT", oa, s2
-        )
+        result = await resolve_researcher("Jane Doe", "0000-1", "MIT", oa, s2)
         assert result.openalex_id is None
         assert len(result.openalex_candidates) == 1
         oa.resolve_author_id.assert_called_once_with("Jane Doe", "MIT")
@@ -160,9 +147,7 @@ class TestResolveResearcher:
         s2 = AsyncMock()
         s2.resolve_author_id.return_value = []
 
-        result = await resolve_researcher(
-            "Jane Doe", None, None, oa, s2
-        )
+        result = await resolve_researcher("Jane Doe", None, None, oa, s2)
         assert result.openalex_id is None
         assert result.semantic_scholar_id is None
         # ORCID lookup should not have been called.
@@ -176,20 +161,15 @@ class TestResolveResearcher:
 
 
 class TestResolveFromCSV:
-    async def test_prefilled_ids_skip_lookup(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_prefilled_ids_skip_lookup(self, tmp_path: Path) -> None:
         csv = tmp_path / "members.csv"
         csv.write_text(
-            "name,orcid,openalex_id,semantic_scholar_id\n"
-            "Jane,0000-1,A123,S456\n"
+            "name,orcid,openalex_id,semantic_scholar_id\nJane,0000-1,A123,S456\n"
         )
         oa = AsyncMock()
         s2 = AsyncMock()
 
-        results = await resolve_researchers_from_csv(
-            csv, oa, s2, rate_limit_delay=0
-        )
+        results = await resolve_researchers_from_csv(csv, oa, s2, rate_limit_delay=0)
         assert len(results) == 1
         assert results[0].openalex_id == "A123"
         assert results[0].semantic_scholar_id == "S456"
@@ -258,9 +238,7 @@ class TestGenerateConfig:
 
 
 class TestMerge:
-    def test_merge_adds_new_and_updates_existing(
-        self, tmp_path: Path
-    ) -> None:
+    def test_merge_adds_new_and_updates_existing(self, tmp_path: Path) -> None:
         existing = tmp_path / "labpubs.yaml"
         existing.write_text(
             yaml.dump(
@@ -294,9 +272,7 @@ class TestMerge:
         assert researchers[0]["openalex_id"] == "A123"
         assert researchers[1]["name"] == "John Smith"
 
-    def test_merge_does_not_overwrite_existing_ids(
-        self, tmp_path: Path
-    ) -> None:
+    def test_merge_does_not_overwrite_existing_ids(self, tmp_path: Path) -> None:
         existing = tmp_path / "labpubs.yaml"
         existing.write_text(
             yaml.dump(

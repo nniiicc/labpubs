@@ -153,9 +153,7 @@ class TestS2PaperToModel:
 
     def test_first_matching_type_wins(self) -> None:
         """When multiple types, first match is used."""
-        paper = _make_paper(
-            publicationTypes=["Review", "JournalArticle"]
-        )
+        paper = _make_paper(publicationTypes=["Review", "JournalArticle"])
         work = _s2_paper_to_model(paper)
         assert work.work_type == WorkType.JOURNAL_ARTICLE
 

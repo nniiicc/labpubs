@@ -35,9 +35,7 @@ def _extract_surnames(work: Work) -> set[str]:
 
 def find_match(
     candidate: Work,
-    existing_works: list[
-        tuple[int, str, str | None, int | None, list[str]]
-    ],
+    existing_works: list[tuple[int, str, str | None, int | None, list[str]]],
     title_threshold: int = 90,
 ) -> int | None:
     """Find a matching existing work for a candidate using tiered matching.
@@ -78,9 +76,7 @@ def find_match(
         for work_id, title_norm, _, year, surnames in existing_works:
             if year != candidate.year:
                 continue
-            score = fuzz.token_sort_ratio(
-                candidate_title, title_norm
-            )
+            score = fuzz.token_sort_ratio(candidate_title, title_norm)
             if score < 80:
                 continue
             existing_surname_set = set(surnames)
@@ -105,8 +101,7 @@ def merge_works(existing: Work, new: Work) -> Work:
     """
     merged_sources = list(
         dict.fromkeys(
-            [s.value for s in existing.sources]
-            + [s.value for s in new.sources]
+            [s.value for s in existing.sources] + [s.value for s in new.sources]
         )
     )
 
@@ -114,8 +109,7 @@ def merge_works(existing: Work, new: Work) -> Work:
         doi=existing.doi or new.doi,
         title=existing.title,
         authors=existing.authors if existing.authors else new.authors,
-        publication_date=existing.publication_date
-        or new.publication_date,
+        publication_date=existing.publication_date or new.publication_date,
         year=existing.year or new.year,
         venue=existing.venue or new.venue,
         work_type=existing.work_type
@@ -123,13 +117,11 @@ def merge_works(existing: Work, new: Work) -> Work:
         else new.work_type,
         abstract=existing.abstract or new.abstract,
         openalex_id=existing.openalex_id or new.openalex_id,
-        semantic_scholar_id=existing.semantic_scholar_id
-        or new.semantic_scholar_id,
+        semantic_scholar_id=existing.semantic_scholar_id or new.semantic_scholar_id,
         open_access=existing.open_access
         if existing.open_access is not None
         else new.open_access,
-        open_access_url=existing.open_access_url
-        or new.open_access_url,
+        open_access_url=existing.open_access_url or new.open_access_url,
         citation_count=max(
             existing.citation_count or 0,
             new.citation_count or 0,
@@ -144,9 +136,7 @@ def merge_works(existing: Work, new: Work) -> Work:
     )
 
 
-def _merge_by_openalex_id(
-    existing: list[_T], new: list[_T]
-) -> list[_T]:
+def _merge_by_openalex_id(existing: list[_T], new: list[_T]) -> list[_T]:
     """Merge lists of Award or Funder, deduplicating by openalex_id.
 
     Keeps the existing item when both lists contain the same ID.

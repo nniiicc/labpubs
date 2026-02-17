@@ -30,17 +30,13 @@ class TestOpenAlexWorkToModel:
                         "id": "https://openalex.org/A111",
                         "orcid": "0000-0001-2345-6789",
                     },
-                    "institutions": [
-                        {"display_name": "University of Washington"}
-                    ],
+                    "institutions": [{"display_name": "University of Washington"}],
                 }
             ],
             "open_access": {"is_oa": True, "oa_url": "https://example.com/paper.pdf"},
             "cited_by_count": 42,
             "abstract_inverted_index": None,
-            "primary_location": {
-                "source": {"display_name": "Nature"}
-            },
+            "primary_location": {"source": {"display_name": "Nature"}},
             "awards": [],
             "funders": [],
         }
@@ -180,9 +176,7 @@ class TestOpenAlexWorkToModel:
     def test_author_no_institutions(self) -> None:
         """Author without institutions gets None affiliation."""
         raw = self._make_work(
-            authorships=[
-                {"author": {"display_name": "Solo"}, "institutions": []}
-            ]
+            authorships=[{"author": {"display_name": "Solo"}, "institutions": []}]
         )
         work = _openalex_work_to_model(raw)
         assert work.authors[0].affiliation is None

@@ -49,13 +49,9 @@ def _crossref_to_work(message: dict[str, Any]) -> Work:
 
     pub_date = None
     year = None
-    date_parts = message.get("published-print", {}).get(
-        "date-parts", [[]]
-    )[0]
+    date_parts = message.get("published-print", {}).get("date-parts", [[]])[0]
     if not date_parts:
-        date_parts = message.get("published-online", {}).get(
-            "date-parts", [[]]
-        )[0]
+        date_parts = message.get("published-online", {}).get("date-parts", [[]])[0]
     if date_parts:
         year = date_parts[0] if len(date_parts) >= 1 else None
         month = date_parts[1] if len(date_parts) >= 2 else 1
@@ -109,9 +105,7 @@ class CrossrefBackend:
             Work with Crossref metadata, or None on failure.
         """
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, partial(self._enrich_sync, doi)
-        )
+        return await loop.run_in_executor(None, partial(self._enrich_sync, doi))
 
     def _enrich_sync(self, doi: str) -> Work | None:
         """Synchronous DOI enrichment.
@@ -127,9 +121,7 @@ class CrossrefBackend:
             message = result.get("message", {})
             return _crossref_to_work(message)
         except Exception:
-            logger.exception(
-                "Error enriching DOI %s from Crossref", doi
-            )
+            logger.exception("Error enriching DOI %s from Crossref", doi)
             return None
 
     async def fetch_works_for_author(
@@ -144,9 +136,7 @@ class CrossrefBackend:
         Returns:
             Empty list.
         """
-        logger.warning(
-            "Crossref does not support author-based fetching"
-        )
+        logger.warning("Crossref does not support author-based fetching")
         return []
 
     async def resolve_author_id(
@@ -161,9 +151,7 @@ class CrossrefBackend:
         Returns:
             Empty list.
         """
-        logger.warning(
-            "Crossref does not support author ID resolution"
-        )
+        logger.warning("Crossref does not support author ID resolution")
         return []
 
     async def resolve_and_fetch_works(

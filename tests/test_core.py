@@ -29,9 +29,7 @@ class TestStoreBasics:
         )
         assert rid2 == rid
 
-    def test_insert_and_find_work(
-        self, tmp_db: Store, sample_work: Work
-    ) -> None:
+    def test_insert_and_find_work(self, tmp_db: Store, sample_work: Work) -> None:
         """Works can be inserted and found by DOI."""
         work_id = tmp_db.insert_work(sample_work)
         result = tmp_db.find_work_by_doi("10.1234/example.2025")
@@ -41,9 +39,7 @@ class TestStoreBasics:
         assert found_work.title == sample_work.title
         assert len(found_work.authors) == 2
 
-    def test_find_work_by_title(
-        self, tmp_db: Store, sample_work: Work
-    ) -> None:
+    def test_find_work_by_title(self, tmp_db: Store, sample_work: Work) -> None:
         """Works can be found by normalized title."""
         tmp_db.insert_work(sample_work)
         result = tmp_db.find_work_by_title(
@@ -51,13 +47,9 @@ class TestStoreBasics:
         )
         assert result is not None
 
-    def test_get_works_with_filters(
-        self, tmp_db: Store, sample_work: Work
-    ) -> None:
+    def test_get_works_with_filters(self, tmp_db: Store, sample_work: Work) -> None:
         """Works can be queried with filters."""
-        rid = tmp_db.upsert_researcher(
-            name="Jane Doe", config_key="jane"
-        )
+        rid = tmp_db.upsert_researcher(name="Jane Doe", config_key="jane")
         wid = tmp_db.insert_work(sample_work)
         tmp_db.link_researcher_work(rid, wid)
 
@@ -70,9 +62,7 @@ class TestStoreBasics:
         works = tmp_db.get_works(year=1999)
         assert len(works) == 0
 
-    def test_search_works(
-        self, tmp_db: Store, sample_work: Work
-    ) -> None:
+    def test_search_works(self, tmp_db: Store, sample_work: Work) -> None:
         """Works can be searched by title content."""
         tmp_db.insert_work(sample_work)
         results = tmp_db.search_works("rulemaking")
@@ -90,9 +80,7 @@ class TestStoreBasics:
         assert researchers[0].name == "Jane Doe"
         assert researchers[0].is_lab_member is True
 
-    def test_researcher_dates_and_groups(
-        self, tmp_db: Store
-    ) -> None:
+    def test_researcher_dates_and_groups(self, tmp_db: Store) -> None:
         """Active dates and groups round-trip through the store."""
         tmp_db.upsert_researcher(
             name="Jane Doe",
@@ -109,9 +97,7 @@ class TestStoreBasics:
         assert r.end_date == "2023-06-30"
         assert r.groups == ["NLP", "faculty"]
 
-    def test_researcher_active_no_end_date(
-        self, tmp_db: Store
-    ) -> None:
+    def test_researcher_active_no_end_date(self, tmp_db: Store) -> None:
         """Researcher with no end_date is still active."""
         tmp_db.upsert_researcher(
             name="John Smith",
@@ -131,9 +117,7 @@ class TestStoreBasics:
         researchers = tmp_db.get_researchers()
         assert researchers[0].groups == []
 
-    def test_researcher_update_preserves_dates(
-        self, tmp_db: Store
-    ) -> None:
+    def test_researcher_update_preserves_dates(self, tmp_db: Store) -> None:
         """Updating a researcher preserves dates and groups."""
         tmp_db.upsert_researcher(
             name="Jane Doe",
@@ -167,14 +151,12 @@ class TestConfig:
         with pytest.raises(FileNotFoundError):
             load_config(tmp_path / "nonexistent.yaml")
 
-    def test_config_with_dates_and_groups(
-        self, tmp_path: Path
-    ) -> None:
+    def test_config_with_dates_and_groups(self, tmp_path: Path) -> None:
         """Config loads researchers with dates and groups."""
         config_content = f"""
 lab:
   name: "Test Lab"
-database_path: "{tmp_path / 'test.db'}"
+database_path: "{tmp_path / "test.db"}"
 researchers:
   - name: "Jane Doe"
     openalex_id: "A123"

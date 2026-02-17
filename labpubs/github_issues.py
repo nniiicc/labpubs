@@ -17,9 +17,7 @@ from labpubs.models import LinkedResource, Work
 logger = logging.getLogger(__name__)
 
 # URL patterns for resource classification
-_CODE_PATTERNS = re.compile(
-    r"https?://(?:www\.)?(?:github|gitlab)\.com/[^\s)\]>]+"
-)
+_CODE_PATTERNS = re.compile(r"https?://(?:www\.)?(?:github|gitlab)\.com/[^\s)\]>]+")
 _DATASET_PATTERNS = re.compile(
     r"https?://(?:www\.)?(?:"
     r"zenodo\.org/record[^\s)\]>]+|"
@@ -29,12 +27,8 @@ _DATASET_PATTERNS = re.compile(
     r"figshare\.com/[^\s)\]>]+"
     r")"
 )
-_DOI_PATTERN = re.compile(
-    r"https?://doi\.org/10\.[^\s)\]>]+"
-)
-_PUBLICATION_ID_PATTERN = re.compile(
-    r"<!--\s*labpubs:publication_id:(\S+)\s*-->"
-)
+_DOI_PATTERN = re.compile(r"https?://doi\.org/10\.[^\s)\]>]+")
+_PUBLICATION_ID_PATTERN = re.compile(r"<!--\s*labpubs:publication_id:(\S+)\s*-->")
 
 
 def render_issue_title(work: Work) -> str:
@@ -49,9 +43,7 @@ def render_issue_title(work: Work) -> str:
     return f"New publication: {work.title}"
 
 
-def render_issue_body(
-    work: Work, config: GitHubIntegrationConfig
-) -> str:
+def render_issue_body(work: Work, config: GitHubIntegrationConfig) -> str:
     """Generate the GitHub issue body for a new publication.
 
     Args:
@@ -64,21 +56,15 @@ def render_issue_body(
     authors_str = ", ".join(a.name for a in work.authors)
     doi_line = ""
     if work.doi:
-        doi_line = (
-            f"**DOI:** [{work.doi}]"
-            f"(https://doi.org/{work.doi})  \n"
-        )
+        doi_line = f"**DOI:** [{work.doi}](https://doi.org/{work.doi})  \n"
     oa_line = ""
     if work.open_access_url:
-        oa_line = (
-            f"**Open Access:** [PDF]({work.open_access_url})\n"
-        )
+        oa_line = f"**Open Access:** [PDF]({work.open_access_url})\n"
     source_line = ""
     if work.openalex_id:
         oa_id = work.openalex_id.split("/")[-1]
         source_line = (
-            f"**Source:** OpenAlex "
-            f"([{oa_id}](https://openalex.org/{oa_id}))  \n"
+            f"**Source:** OpenAlex ([{oa_id}](https://openalex.org/{oa_id}))  \n"
         )
 
     from datetime import date
@@ -148,9 +134,7 @@ Add links to code, data, or other resources below. Use the format shown:
 <!-- labpubs:publication_id:{pub_id} -->"""
 
 
-def get_issue_labels(
-    work: Work, config: GitHubIntegrationConfig
-) -> list[str]:
+def get_issue_labels(work: Work, config: GitHubIntegrationConfig) -> list[str]:
     """Determine labels for a verification issue.
 
     Args:
@@ -174,9 +158,7 @@ def get_issue_labels(
     return labels
 
 
-def get_issue_assignees(
-    work: Work, config: GitHubIntegrationConfig
-) -> list[str]:
+def get_issue_assignees(work: Work, config: GitHubIntegrationConfig) -> list[str]:
     """Determine assignees for a verification issue.
 
     Args:
@@ -207,9 +189,7 @@ def extract_publication_id(issue_body: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _extract_section(
-    body: str, header: str, end_header: str
-) -> str:
+def _extract_section(body: str, header: str, end_header: str) -> str:
     """Extract text between two markdown headers.
 
     Args:
@@ -251,29 +231,21 @@ def parse_issue_enrichments(issue_body: str) -> dict[str, Any]:
     }
 
     # Parse code repositories section
-    code_section = _extract_section(
-        issue_body, "Code repositories:", "Datasets:"
-    )
+    code_section = _extract_section(issue_body, "Code repositories:", "Datasets:")
     if code_section:
         for url in _CODE_PATTERNS.findall(code_section):
             enrichments["code_repos"].append(url)
 
     # Parse datasets section
-    dataset_section = _extract_section(
-        issue_body, "Datasets:", "Other resources:"
-    )
+    dataset_section = _extract_section(issue_body, "Datasets:", "Other resources:")
     if dataset_section:
         for url in _DATASET_PATTERNS.findall(dataset_section):
             enrichments["datasets"].append(url)
 
     # Parse other resources section
-    other_section = _extract_section(
-        issue_body, "Other resources:", "Notes"
-    )
+    other_section = _extract_section(issue_body, "Other resources:", "Notes")
     if other_section:
-        urls = re.findall(
-            r"https?://[^\s)\]>]+", other_section
-        )
+        urls = re.findall(r"https?://[^\s)\]>]+", other_section)
         enrichments["other_resources"] = urls
 
     # Parse notes section
@@ -288,19 +260,14 @@ def parse_issue_enrichments(issue_body: str) -> dict[str, Any]:
             enrichments["notes"] = notes
 
     # Check verification boxes
-    checklist = re.findall(
-        r"- \[([ xX])\] (.+)", issue_body
-    )
+    checklist = re.findall(r"- \[([ xX])\] (.+)", issue_body)
     for checked, text in checklist:
         if "metadata is correct" in text.lower():
             if checked.lower() == "x":
                 enrichments["verified"] = True
         if "not a disambiguation error" in text.lower():
             pass
-        if (
-            "actually a lab publication" in text.lower()
-            and checked.lower() != "x"
-        ):
+        if "actually a lab publication" in text.lower() and checked.lower() != "x":
             enrichments["is_valid"] = False
 
     return enrichments
@@ -319,17 +286,11 @@ def enrichments_to_linked_resources(
     """
     resources: list[LinkedResource] = []
     for url in enrichments["code_repos"]:
-        resources.append(
-            LinkedResource(url=url, resource_type="code")
-        )
+        resources.append(LinkedResource(url=url, resource_type="code"))
     for url in enrichments["datasets"]:
-        resources.append(
-            LinkedResource(url=url, resource_type="dataset")
-        )
+        resources.append(LinkedResource(url=url, resource_type="dataset"))
     for url in enrichments["other_resources"]:
-        resources.append(
-            LinkedResource(url=url, resource_type="other")
-        )
+        resources.append(LinkedResource(url=url, resource_type="other"))
     return resources
 
 
@@ -377,24 +338,18 @@ def create_github_issue(
             check=False,
         )
         if result.returncode != 0:
-            logger.error(
-                "gh issue create failed: %s", result.stderr
-            )
+            logger.error("gh issue create failed: %s", result.stderr)
             return None
         return result.stdout.strip()
     except FileNotFoundError:
-        logger.error(
-            "gh CLI not found. Install: https://cli.github.com"
-        )
+        logger.error("gh CLI not found. Install: https://cli.github.com")
         return None
     except subprocess.TimeoutExpired:
         logger.error("gh issue create timed out")
         return None
 
 
-def list_closed_issues(
-    repo: str, label: str
-) -> list[dict[str, Any]]:
+def list_closed_issues(repo: str, label: str) -> list[dict[str, Any]]:
     """List closed issues with a specific label using gh CLI.
 
     Args:
@@ -429,25 +384,19 @@ def list_closed_issues(
             check=False,
         )
         if result.returncode != 0:
-            logger.error(
-                "gh issue list failed: %s", result.stderr
-            )
+            logger.error("gh issue list failed: %s", result.stderr)
             return []
         issues: list[dict[str, Any]] = orjson.loads(result.stdout)
         return issues
     except FileNotFoundError:
-        logger.error(
-            "gh CLI not found. Install: https://cli.github.com"
-        )
+        logger.error("gh CLI not found. Install: https://cli.github.com")
         return []
     except subprocess.TimeoutExpired:
         logger.error("gh issue list timed out")
         return []
 
 
-def add_issue_labels(
-    repo: str, issue_number: int, labels: list[str]
-) -> bool:
+def add_issue_labels(repo: str, issue_number: int, labels: list[str]) -> bool:
     """Add labels to an existing GitHub issue.
 
     Args:
@@ -478,15 +427,11 @@ def add_issue_labels(
             check=False,
         )
         if result.returncode != 0:
-            logger.error(
-                "gh issue edit failed: %s", result.stderr
-            )
+            logger.error("gh issue edit failed: %s", result.stderr)
             return False
         return True
     except FileNotFoundError:
-        logger.error(
-            "gh CLI not found. Install: https://cli.github.com"
-        )
+        logger.error("gh CLI not found. Install: https://cli.github.com")
         return False
     except subprocess.TimeoutExpired:
         logger.error("gh issue edit timed out")

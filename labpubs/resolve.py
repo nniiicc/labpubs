@@ -56,9 +56,7 @@ class ResolveResult(BaseModel):
     s2_confident: bool = False
 
 
-def _match_column(
-    headers: list[str], aliases: set[str]
-) -> str | None:
+def _match_column(headers: list[str], aliases: set[str]) -> str | None:
     """Find a CSV column matching any of the given aliases."""
     for h in headers:
         if h.strip().lower().replace(" ", "_") in aliases:
@@ -98,17 +96,13 @@ def parse_csv(csv_path: str | Path) -> list[dict[str, str]]:
         col_groups = _match_column(headers, _GROUP_ALIASES)
 
         if col_name is None:
-            raise ValueError(
-                f"CSV must have a 'name' column. Found: {headers}"
-            )
+            raise ValueError(f"CSV must have a 'name' column. Found: {headers}")
 
         for row in reader:
             name = (row.get(col_name) or "").strip()
             if not name:
                 continue
-            groups_raw = (
-                row.get(col_groups, "") if col_groups else ""
-            ).strip()
+            groups_raw = (row.get(col_groups, "") if col_groups else "").strip()
             groups = (
                 [g.strip() for g in groups_raw.split(",") if g.strip()]
                 if groups_raw
@@ -117,26 +111,14 @@ def parse_csv(csv_path: str | Path) -> list[dict[str, str]]:
             rows.append(
                 {
                     "name": name,
-                    "orcid": (
-                        row.get(col_orcid, "") if col_orcid else ""
-                    ).strip(),
-                    "openalex_id": (
-                        row.get(col_oa, "") if col_oa else ""
-                    ).strip(),
+                    "orcid": (row.get(col_orcid, "") if col_orcid else "").strip(),
+                    "openalex_id": (row.get(col_oa, "") if col_oa else "").strip(),
                     "semantic_scholar_id": (
                         row.get(col_s2, "") if col_s2 else ""
                     ).strip(),
-                    "affiliation": (
-                        row.get(col_aff, "") if col_aff else ""
-                    ).strip(),
-                    "start_date": (
-                        row.get(col_start, "")
-                        if col_start
-                        else ""
-                    ).strip(),
-                    "end_date": (
-                        row.get(col_end, "") if col_end else ""
-                    ).strip(),
+                    "affiliation": (row.get(col_aff, "") if col_aff else "").strip(),
+                    "start_date": (row.get(col_start, "") if col_start else "").strip(),
+                    "end_date": (row.get(col_end, "") if col_end else "").strip(),
                     "groups": ",".join(groups),
                 }
             )
@@ -166,26 +148,20 @@ async def resolve_researcher(
     Returns:
         A :class:`ResolveResult` with resolved IDs and/or candidates.
     """
-    result = ResolveResult(
-        name=name, orcid=orcid, affiliation=affiliation
-    )
+    result = ResolveResult(name=name, orcid=orcid, affiliation=affiliation)
 
     # --- OpenAlex ---
     if openalex_backend:
         # 1. Try ORCID direct lookup
         if orcid:
-            author = await openalex_backend.resolve_author_by_orcid(
-                orcid
-            )
+            author = await openalex_backend.resolve_author_by_orcid(orcid)
             if author and author.openalex_id:
                 result.openalex_id = author.openalex_id
                 result.openalex_confident = True
 
         # 2. Fallback: name search
         if not result.openalex_id:
-            candidates = await openalex_backend.resolve_author_id(
-                name, affiliation
-            )
+            candidates = await openalex_backend.resolve_author_id(name, affiliation)
             result.openalex_candidates = candidates
 
     # --- Semantic Scholar ---
@@ -259,11 +235,7 @@ async def resolve_researchers_from_csv(
             r.end_date = row["end_date"]
         groups_raw = row.get("groups", "")
         if groups_raw:
-            r.groups = [
-                g.strip()
-                for g in groups_raw.split(",")
-                if g.strip()
-            ]
+            r.groups = [g.strip() for g in groups_raw.split(",") if g.strip()]
 
         results.append(r)
         await asyncio.sleep(rate_limit_delay)
@@ -317,9 +289,7 @@ def generate_config_yaml(
         "sources": ["openalex", "semantic_scholar", "crossref"],
     }
 
-    return yaml.dump(
-        config, default_flow_style=False, sort_keys=False
-    )
+    return yaml.dump(config, default_flow_style=False, sort_keys=False)
 
 
 def merge_into_existing(
@@ -362,9 +332,7 @@ def merge_into_existing(
             # Update with any newly resolved IDs.
             if r.openalex_id and not match.get("openalex_id"):
                 match["openalex_id"] = r.openalex_id
-            if r.semantic_scholar_id and not match.get(
-                "semantic_scholar_id"
-            ):
+            if r.semantic_scholar_id and not match.get("semantic_scholar_id"):
                 match["semantic_scholar_id"] = r.semantic_scholar_id
             if r.start_date and not match.get("start_date"):
                 match["start_date"] = r.start_date
@@ -390,6 +358,4 @@ def merge_into_existing(
                 entry["groups"] = r.groups
             existing.append(entry)
 
-    return yaml.dump(
-        config, default_flow_style=False, sort_keys=False
-    )
+    return yaml.dump(config, default_flow_style=False, sort_keys=False)

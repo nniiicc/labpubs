@@ -38,9 +38,7 @@ class TestWorksToJson:
         """Authors are serialized correctly."""
         work = Work(
             title="Test",
-            authors=[
-                Author(name="Jane Doe", orcid="0000-0001-2345-6789")
-            ],
+            authors=[Author(name="Jane Doe", orcid="0000-0001-2345-6789")],
             sources=[Source.OPENALEX],
         )
         result = works_to_json([work])[0]

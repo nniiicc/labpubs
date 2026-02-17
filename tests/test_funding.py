@@ -78,9 +78,7 @@ def nsf_award(nsf_funder: Funder, lead_pi: Investigator) -> Award:
 
 
 @pytest.fixture
-def funded_work(
-    nsf_funder: Funder, nsf_award: Award
-) -> Work:
+def funded_work(nsf_funder: Funder, nsf_award: Award) -> Work:
     """Work with funding data."""
     return Work(
         doi="10.1234/funded.2025",
@@ -148,9 +146,7 @@ class TestFundingModels:
         """Work model stores awards and funders."""
         assert len(funded_work.awards) == 1
         assert len(funded_work.funders) == 1
-        assert (
-            funded_work.awards[0].funder_award_id == "2043024"
-        )
+        assert funded_work.awards[0].funder_award_id == "2043024"
 
 
 # ── Store Tests ───────────────────────────────────────────────────────
@@ -159,9 +155,7 @@ class TestFundingModels:
 class TestFundingStore:
     """Tests for funding-related store operations."""
 
-    def test_upsert_funder(
-        self, funded_store: Store, nsf_funder: Funder
-    ) -> None:
+    def test_upsert_funder(self, funded_store: Store, nsf_funder: Funder) -> None:
         """Upsert inserts a funder and returns its ID."""
         funder_id = funded_store.upsert_funder(nsf_funder)
         assert funder_id is not None
@@ -211,33 +205,25 @@ class TestFundingStore:
         assert len(awards) == 1
         assert awards[0].funder_award_id == "2043024"
         assert awards[0].funder is not None
-        assert (
-            awards[0].funder.name == "National Science Foundation"
-        )
+        assert awards[0].funder.name == "National Science Foundation"
 
         # Check funders were linked
         funders = funded_store._load_work_funders(work_id)
         assert len(funders) == 1
-        assert (
-            funders[0].name == "National Science Foundation"
-        )
+        assert funders[0].name == "National Science Foundation"
 
     def test_hydrate_work_includes_funding(
         self, funded_store: Store, funded_work: Work
     ) -> None:
         """Hydrated work includes awards and funders."""
         funded_store.insert_work(funded_work)
-        result = funded_store.find_work_by_doi(
-            funded_work.doi
-        )
+        result = funded_store.find_work_by_doi(funded_work.doi)
         assert result is not None
         _, hydrated = result
         assert len(hydrated.awards) == 1
         assert len(hydrated.funders) == 1
 
-    def test_get_works_by_funder(
-        self, funded_store: Store, funded_work: Work
-    ) -> None:
+    def test_get_works_by_funder(self, funded_store: Store, funded_work: Work) -> None:
         """Query works by funder name."""
         funded_store.insert_work(funded_work)
         works = funded_store.get_works_by_funder("Science Foundation")
@@ -252,23 +238,17 @@ class TestFundingStore:
         works = funded_store.get_works_by_funder("nsf")
         # Won't match "National Science Foundation" substring
         assert len(works) == 0
-        works = funded_store.get_works_by_funder(
-            "national science"
-        )
+        works = funded_store.get_works_by_funder("national science")
         assert len(works) == 1
 
-    def test_get_works_by_award(
-        self, funded_store: Store, funded_work: Work
-    ) -> None:
+    def test_get_works_by_award(self, funded_store: Store, funded_work: Work) -> None:
         """Query works by award/grant number."""
         funded_store.insert_work(funded_work)
         works = funded_store.get_works_by_award("2043024")
         assert len(works) == 1
         assert works[0].doi == funded_work.doi
 
-    def test_get_all_funders(
-        self, funded_store: Store, funded_work: Work
-    ) -> None:
+    def test_get_all_funders(self, funded_store: Store, funded_work: Work) -> None:
         """List all funders in the database."""
         funded_store.insert_work(funded_work)
         funders = funded_store.get_all_funders()
@@ -276,9 +256,7 @@ class TestFundingStore:
         names = [f.name for f in funders]
         assert "National Science Foundation" in names
 
-    def test_get_all_awards(
-        self, funded_store: Store, funded_work: Work
-    ) -> None:
+    def test_get_all_awards(self, funded_store: Store, funded_work: Work) -> None:
         """List all awards in the database."""
         funded_store.insert_work(funded_work)
         awards = funded_store.get_all_awards()
@@ -302,21 +280,14 @@ class TestFundingStore:
     ) -> None:
         """Look up award by grant number."""
         funded_store.insert_work(funded_work)
-        award = funded_store.get_award_by_funder_award_id(
-            "2043024"
-        )
+        award = funded_store.get_award_by_funder_award_id("2043024")
         assert award is not None
         assert award.display_name == "Human Networks and Data Science"
         assert award.funder is not None
 
-    def test_get_award_not_found(
-        self, funded_store: Store
-    ) -> None:
+    def test_get_award_not_found(self, funded_store: Store) -> None:
         """Missing award returns None."""
-        assert (
-            funded_store.get_award_by_funder_award_id("9999999")
-            is None
-        )
+        assert funded_store.get_award_by_funder_award_id("9999999") is None
 
     def test_funder_publication_counts(
         self, funded_store: Store, funded_work: Work
@@ -334,9 +305,7 @@ class TestFundingStore:
     ) -> None:
         """Updating a work re-persists funding data."""
         work_id = funded_store.insert_work(funded_work)
-        funded_work_copy = funded_work.model_copy(
-            update={"citation_count": 99}
-        )
+        funded_work_copy = funded_work.model_copy(update={"citation_count": 99})
         funded_store.update_work(work_id, funded_work_copy)
 
         awards = funded_store._load_work_awards(work_id)
@@ -352,12 +321,8 @@ class TestFundingStore:
     ) -> None:
         """Award investigators are stored and loaded."""
         funder_id = funded_store.upsert_funder(nsf_funder)
-        award_id = funded_store.upsert_award(
-            nsf_award, funder_id
-        )
-        investigators = funded_store._load_award_investigators(
-            award_id
-        )
+        award_id = funded_store.upsert_award(nsf_award, funder_id)
+        investigators = funded_store._load_award_investigators(award_id)
         assert len(investigators) == 1
         assert investigators[0].given_name == "Jane"
         assert investigators[0].family_name == "Doe"
@@ -371,15 +336,9 @@ class TestFundingDedup:
 
     def test_merge_awards_union(self) -> None:
         """Merge combines awards by openalex_id."""
-        a1 = Award(
-            openalex_id="G1", display_name="Award 1"
-        )
-        a2 = Award(
-            openalex_id="G2", display_name="Award 2"
-        )
-        a3 = Award(
-            openalex_id="G1", display_name="Award 1 updated"
-        )
+        a1 = Award(openalex_id="G1", display_name="Award 1")
+        a2 = Award(openalex_id="G2", display_name="Award 2")
+        a3 = Award(openalex_id="G1", display_name="Award 1 updated")
 
         merged = _merge_awards([a1], [a2, a3])
         assert len(merged) == 2
@@ -541,9 +500,7 @@ class TestGrantReportExport:
         report_award: Award,
     ) -> None:
         """Markdown report includes award header and publications."""
-        report = export_grant_report_markdown(
-            report_works, report_award
-        )
+        report = export_grant_report_markdown(report_works, report_award)
         assert "# Grant Report:" in report
         assert "2043024" in report
         assert "National Science Foundation" in report
@@ -551,24 +508,16 @@ class TestGrantReportExport:
         assert "Paper Two" in report
         assert "Jane Doe" in report
 
-    def test_markdown_without_award(
-        self, report_works: list[Work]
-    ) -> None:
+    def test_markdown_without_award(self, report_works: list[Work]) -> None:
         """Markdown report without award uses funder name header."""
-        report = export_grant_report_markdown(
-            report_works, funder_name="NSF"
-        )
+        report = export_grant_report_markdown(report_works, funder_name="NSF")
         assert "# Grant Report: NSF" in report
         assert "**Publications:** 2" in report
 
-    def test_markdown_includes_abstract(
-        self, report_works: list[Work]
-    ) -> None:
+    def test_markdown_includes_abstract(self, report_works: list[Work]) -> None:
         """Markdown report with abstracts."""
         report_works[0].abstract = "Test abstract content."
-        report = export_grant_report_markdown(
-            report_works, include_abstract=True
-        )
+        report = export_grant_report_markdown(report_works, include_abstract=True)
         assert "Test abstract content." in report
 
     def test_json_report(
@@ -577,48 +526,32 @@ class TestGrantReportExport:
         report_award: Award,
     ) -> None:
         """JSON report is valid and contains expected data."""
-        report = export_grant_report_json(
-            report_works, report_award
-        )
+        report = export_grant_report_json(report_works, report_award)
         data = orjson.loads(report)
         assert data["publication_count"] == 2
         assert data["funder"] == "National Science Foundation"
         assert "award" in data
 
-    def test_csv_report(
-        self, report_works: list[Work]
-    ) -> None:
+    def test_csv_report(self, report_works: list[Work]) -> None:
         """CSV report has header and correct row count."""
         report = export_grant_report_csv(report_works)
         lines = report.strip().split("\n")
         assert lines[0] == "title,year,venue,doi,authors"
         assert len(lines) == 3  # header + 2 works
 
-    def test_export_dispatch(
-        self, report_works: list[Work]
-    ) -> None:
+    def test_export_dispatch(self, report_works: list[Work]) -> None:
         """export_grant_report dispatches to correct format."""
-        md = export_grant_report(
-            report_works, report_format="markdown"
-        )
+        md = export_grant_report(report_works, report_format="markdown")
         assert "# Grant Report" in md
 
-        json_str = export_grant_report(
-            report_works, report_format="json"
-        )
+        json_str = export_grant_report(report_works, report_format="json")
         data = orjson.loads(json_str)
         assert "publication_count" in data
 
-        csv_str = export_grant_report(
-            report_works, report_format="csv"
-        )
+        csv_str = export_grant_report(report_works, report_format="csv")
         assert csv_str.startswith("title,year")
 
-    def test_export_invalid_format(
-        self, report_works: list[Work]
-    ) -> None:
+    def test_export_invalid_format(self, report_works: list[Work]) -> None:
         """Invalid format raises ValueError."""
         with pytest.raises(ValueError, match="Unsupported"):
-            export_grant_report(
-                report_works, report_format="xml"
-            )
+            export_grant_report(report_works, report_format="xml")

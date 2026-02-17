@@ -41,9 +41,7 @@ def _openalex_work_to_model(work: dict[str, Any]) -> Work:
     for authorship in work.get("authorships", []):
         author_data = authorship.get("author", {})
         institutions = authorship.get("institutions", [])
-        affiliation = (
-            institutions[0].get("display_name") if institutions else None
-        )
+        affiliation = institutions[0].get("display_name") if institutions else None
         authors.append(
             Author(
                 name=author_data.get("display_name", "Unknown"),
@@ -221,9 +219,7 @@ class OpenAlexBackend:
             None, partial(self._fetch_sync, author_id, since)
         )
 
-    def _fetch_sync(
-        self, author_id: str, since: date | None
-    ) -> list[Work]:
+    def _fetch_sync(self, author_id: str, since: date | None) -> list[Work]:
         """Synchronous fetch implementation.
 
         Args:
@@ -276,9 +272,7 @@ class OpenAlexBackend:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
-            partial(
-                self._resolve_and_fetch_sync, stored_id, orcid, since
-            ),
+            partial(self._resolve_and_fetch_sync, stored_id, orcid, since),
         )
 
     def _resolve_and_fetch_sync(
@@ -328,9 +322,7 @@ class OpenAlexBackend:
 
         return all_works, resolved_id
 
-    async def resolve_author_by_orcid(
-        self, orcid: str
-    ) -> Author | None:
+    async def resolve_author_by_orcid(self, orcid: str) -> Author | None:
         """Look up an OpenAlex author directly by ORCID.
 
         Uses the deterministic endpoint rather than search, so the
@@ -356,9 +348,7 @@ class OpenAlexBackend:
                 institutions = author.get("last_known_institutions", [])
                 if institutions:
                     aff = institutions[0].get("display_name")
-                oa_id = (author.get("id") or "").replace(
-                    "https://openalex.org/", ""
-                )
+                oa_id = (author.get("id") or "").replace("https://openalex.org/", "")
                 return Author(
                     name=author.get("display_name", "Unknown"),
                     openalex_id=oa_id,
@@ -366,9 +356,7 @@ class OpenAlexBackend:
                     affiliation=aff,
                 )
         except Exception:
-            logger.debug(
-                "ORCID %s not found in OpenAlex", orcid
-            )
+            logger.debug("ORCID %s not found in OpenAlex", orcid)
         return None
 
     async def resolve_author_id(
@@ -388,9 +376,7 @@ class OpenAlexBackend:
             None, partial(self._resolve_sync, name, affiliation)
         )
 
-    def _resolve_sync(
-        self, name: str, affiliation: str | None
-    ) -> list[Author]:
+    def _resolve_sync(self, name: str, affiliation: str | None) -> list[Author]:
         """Synchronous author resolution.
 
         Args:
@@ -407,13 +393,9 @@ class OpenAlexBackend:
                 for author in page:
                     aff = None
                     if author.get("last_known_institutions"):
-                        aff = author["last_known_institutions"][0].get(
-                            "display_name"
-                        )
+                        aff = author["last_known_institutions"][0].get("display_name")
                     if affiliation and aff:
-                        name_lower = _strip_accents(
-                            affiliation.lower()
-                        )
+                        name_lower = _strip_accents(affiliation.lower())
                         aff_lower = _strip_accents(aff.lower())
                         if name_lower not in aff_lower:
                             continue
@@ -426,7 +408,5 @@ class OpenAlexBackend:
                         )
                     )
         except Exception:
-            logger.exception(
-                "Error resolving author '%s' in OpenAlex", name
-            )
+            logger.exception("Error resolving author '%s' in OpenAlex", name)
         return candidates

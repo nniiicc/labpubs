@@ -20,9 +20,7 @@ def _format_slack_message(works: list[Work]) -> str:
     """
     lines = [f"New publications found ({len(works)}):"]
     for work in works:
-        author_names = ", ".join(
-            a.name for a in work.authors[:3]
-        )
+        author_names = ", ".join(a.name for a in work.authors[:3])
         if len(work.authors) > 3:
             author_names += " et al."
 
@@ -64,9 +62,7 @@ async def send_slack_notification(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                webhook_url, json=payload, timeout=10.0
-            )
+            response = await client.post(webhook_url, json=payload, timeout=10.0)
             response.raise_for_status()
             return True
     except httpx.HTTPError:

@@ -48,9 +48,7 @@ def work_to_csl(work: Work) -> dict[str, Any]:
         # Generate a stable ID from DOI
         entry["id"] = work.doi.replace("/", "_").replace(".", "-")
     else:
-        safe_title = "".join(
-            c if c.isalnum() else "_" for c in work.title[:40]
-        )
+        safe_title = "".join(c if c.isalnum() else "_" for c in work.title[:40])
         entry["id"] = f"{safe_title}_{work.year or 'nd'}"
 
     if work.publication_date:

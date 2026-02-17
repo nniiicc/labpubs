@@ -46,22 +46,16 @@ def _init_sources(
     Returns:
         Mapping of source name to backend instance.
     """
-    backends: dict[
-        str, OpenAlexBackend | SemanticScholarBackend | CrossrefBackend
-    ] = {}
+    backends: dict[str, OpenAlexBackend | SemanticScholarBackend | CrossrefBackend] = {}
     for source_name in config.sources:
         if source_name == "openalex":
-            backends["openalex"] = OpenAlexBackend(
-                email=config.openalex_email
-            )
+            backends["openalex"] = OpenAlexBackend(email=config.openalex_email)
         elif source_name == "semantic_scholar":
             backends["semantic_scholar"] = SemanticScholarBackend(
                 api_key=config.semantic_scholar_api_key
             )
         elif source_name == "crossref":
-            backends["crossref"] = CrossrefBackend(
-                email=config.openalex_email
-            )
+            backends["crossref"] = CrossrefBackend(email=config.openalex_email)
     return backends
 
 
@@ -116,9 +110,7 @@ class LabPubs:
         researchers = self.config.researchers
         if researcher_name:
             researchers = [
-                r
-                for r in researchers
-                if researcher_name.lower() in r.name.lower()
+                r for r in researchers if researcher_name.lower() in r.name.lower()
             ]
 
         last_sync = self.store.get_last_sync_date()
@@ -131,33 +123,23 @@ class LabPubs:
         for rc in researchers:
             researcher_id = self.store.get_researcher_id(rc.name)
             if researcher_id is None:
-                errors.append(
-                    f"Researcher '{rc.name}' not found in database"
-                )
+                errors.append(f"Researcher '{rc.name}' not found in database")
                 continue
 
-            fetched = await self._fetch_all_sources(
-                rc, since_date
-            )
+            fetched = await self._fetch_all_sources(rc, since_date)
 
-            existing_works = (
-                self.store.get_all_works_for_matching()
-            )
+            existing_works = self.store.get_all_works_for_matching()
 
             for work in fetched:
                 match_id = find_match(work, existing_works)
                 if match_id is None:
                     work.first_seen = datetime.utcnow()
                     work_id = self.store.insert_work(work)
-                    self.store.link_researcher_work(
-                        researcher_id, work_id
-                    )
+                    self.store.link_researcher_work(researcher_id, work_id)
                     new_works.append(work)
                     # Add to existing for subsequent dedup checks
                     surnames = [
-                        a.name.split()[-1].lower()
-                        for a in work.authors
-                        if a.name
+                        a.name.split()[-1].lower() for a in work.authors if a.name
                     ]
                     existing_works.append(
                         (
@@ -169,20 +151,16 @@ class LabPubs:
                         )
                     )
                 else:
-                    existing_result = self.store.find_work_by_doi(
-                        work.doi
-                    ) if work.doi else None
+                    existing_result = (
+                        self.store.find_work_by_doi(work.doi) if work.doi else None
+                    )
                     if existing_result is None:
-                        existing_result = (
-                            self.store.find_work_by_title(work.title)
-                        )
+                        existing_result = self.store.find_work_by_title(work.title)
                     if existing_result:
                         _, existing_work = existing_result
                         merged = merge_works(existing_work, work)
                         self.store.update_work(match_id, merged)
-                        self.store.link_researcher_work(
-                            researcher_id, match_id
-                        )
+                        self.store.link_researcher_work(researcher_id, match_id)
                         updated_works.append(merged)
 
         result = SyncResult(
@@ -223,36 +201,36 @@ class LabPubs:
         if "openalex" in self.sources and (
             researcher_config.openalex_id or researcher_config.orcid
         ):
-            tasks.append((
-                "openalex",
-                self.sources["openalex"].resolve_and_fetch_works(
-                    stored_id=researcher_config.openalex_id,
-                    orcid=researcher_config.orcid,
-                    since=since,
-                    name=researcher_config.name,
-                ),
-            ))
+            tasks.append(
+                (
+                    "openalex",
+                    self.sources["openalex"].resolve_and_fetch_works(
+                        stored_id=researcher_config.openalex_id,
+                        orcid=researcher_config.orcid,
+                        since=since,
+                        name=researcher_config.name,
+                    ),
+                )
+            )
 
         if "semantic_scholar" in self.sources and (
-            researcher_config.semantic_scholar_id
-            or researcher_config.orcid
+            researcher_config.semantic_scholar_id or researcher_config.orcid
         ):
-            tasks.append((
-                "semantic_scholar",
-                self.sources[
-                    "semantic_scholar"
-                ].resolve_and_fetch_works(
-                    stored_id=researcher_config.semantic_scholar_id,
-                    orcid=researcher_config.orcid,
-                    since=since,
-                    name=researcher_config.name,
-                ),
-            ))
+            tasks.append(
+                (
+                    "semantic_scholar",
+                    self.sources["semantic_scholar"].resolve_and_fetch_works(
+                        stored_id=researcher_config.semantic_scholar_id,
+                        orcid=researcher_config.orcid,
+                        since=since,
+                        name=researcher_config.name,
+                    ),
+                )
+            )
 
         if not tasks:
             logger.warning(
-                "No source IDs or ORCID configured for "
-                "researcher '%s'",
+                "No source IDs or ORCID configured for researcher '%s'",
                 researcher_config.name,
             )
             return []
@@ -355,9 +333,7 @@ class LabPubs:
         """
         return self.store.get_researchers()
 
-    def get_new_works(
-        self, since: datetime | None = None
-    ) -> list[Work]:
+    def get_new_works(self, since: datetime | None = None) -> list[Work]:
         """Return works first seen after the given timestamp.
 
         Args:
@@ -368,9 +344,7 @@ class LabPubs:
         """
         return self.store.get_new_works(since)
 
-    def search_works(
-        self, query: str, limit: int = 20
-    ) -> list[Work]:
+    def search_works(self, query: str, limit: int = 20) -> list[Work]:
         """Full-text search across titles and abstracts.
 
         Args:
@@ -452,9 +426,7 @@ class LabPubs:
         works = self.get_works(researcher=researcher, year=year)
         return works_to_json(works)
 
-    def get_works_by_funder(
-        self, funder: str, year: int | None = None
-    ) -> list[Work]:
+    def get_works_by_funder(self, funder: str, year: int | None = None) -> list[Work]:
         """Get works funded by a specific funder.
 
         Args:
@@ -485,9 +457,7 @@ class LabPubs:
         """
         return self.store.get_all_funders()
 
-    def get_awards(
-        self, funder: str | None = None
-    ) -> list[Award]:
+    def get_awards(self, funder: str | None = None) -> list[Award]:
         """List awards, optionally filtered by funder.
 
         Args:
@@ -498,9 +468,7 @@ class LabPubs:
         """
         return self.store.get_all_awards(funder)
 
-    def get_award_details(
-        self, award_id: str
-    ) -> Award | None:
+    def get_award_details(self, award_id: str) -> Award | None:
         """Get details for an award by grant number.
 
         Args:
@@ -622,17 +590,11 @@ class LabPubs:
             works = [
                 w
                 for w in works
-                if any(
-                    researcher.lower() in a.name.lower()
-                    for a in w.authors
-                )
+                if any(researcher.lower() in a.name.lower() for a in w.authors)
             ]
 
         # Filter out works that already have an issue
-        works = [
-            w for w in works
-            if not w.verification_issue_url
-        ]
+        works = [w for w in works if not w.verification_issue_url]
 
         urls: list[str] = []
         for work in works:
@@ -642,32 +604,25 @@ class LabPubs:
             assignees = get_issue_assignees(work, gh_config)
 
             url = create_github_issue(
-                gh_config.repo, title, body,
-                labels, assignees,
+                gh_config.repo,
+                title,
+                body,
+                labels,
+                assignees,
             )
             if url:
                 urls.append(url)
                 # Store the issue URL on the work
-                result = self.store.find_work_by_doi(
-                    work.doi
-                ) if work.doi else None
+                result = self.store.find_work_by_doi(work.doi) if work.doi else None
                 if result is None and work.openalex_id:
-                    result = (
-                        self.store.find_work_by_openalex_id(
-                            work.openalex_id
-                        )
-                    )
+                    result = self.store.find_work_by_openalex_id(work.openalex_id)
                 if result:
                     work_id, _ = result
-                    self._conn_execute_issue_url(
-                        work_id, url
-                    )
+                    self._conn_execute_issue_url(work_id, url)
 
         return urls
 
-    def _conn_execute_issue_url(
-        self, work_id: int, url: str
-    ) -> None:
+    def _conn_execute_issue_url(self, work_id: int, url: str) -> None:
         """Store the verification issue URL on a work.
 
         Args:
@@ -701,9 +656,7 @@ class LabPubs:
             logger.warning("GitHub integration not configured")
             return {"processed": 0, "updated": 0, "invalid": 0}
 
-        issues = list_closed_issues(
-            gh_config.repo, gh_config.labels.new
-        )
+        issues = list_closed_issues(gh_config.repo, gh_config.labels.new)
 
         stats = {"processed": 0, "updated": 0, "invalid": 0}
 
@@ -716,9 +669,7 @@ class LabPubs:
             # Find the work in the database
             result = self.store.find_work_by_doi(pub_id)
             if result is None:
-                result = (
-                    self.store.find_work_by_openalex_id(pub_id)
-                )
+                result = self.store.find_work_by_openalex_id(pub_id)
             if result is None:
                 continue
 
@@ -738,16 +689,12 @@ class LabPubs:
                 continue
 
             # Add linked resources
-            resources = enrichments_to_linked_resources(
-                enrichments
-            )
+            resources = enrichments_to_linked_resources(enrichments)
             closed_by = issue.get("closedBy", {})
             gh_user = closed_by.get("login") if closed_by else None
 
             for res in resources:
-                self.store.add_linked_resource(
-                    work_id, res, added_by=gh_user
-                )
+                self.store.add_linked_resource(work_id, res, added_by=gh_user)
 
             # Mark verified
             self.store.mark_work_verified(
@@ -789,9 +736,7 @@ class LabPubs:
         for source_name, backend in self.sources.items():
             if source_name == "crossref":
                 continue
-            candidates = await backend.resolve_author_id(
-                name, affiliation
-            )
+            candidates = await backend.resolve_author_id(name, affiliation)
             all_candidates.extend(candidates)
         return all_candidates
 

@@ -77,7 +77,7 @@ lab:
   name: "Test Lab"
   institution: "Test University"
 
-database_path: "{tmp_path / 'test.db'}"
+database_path: "{tmp_path / "test.db"}"
 
 researchers:
   - name: "Jane Doe"

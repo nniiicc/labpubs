@@ -116,9 +116,7 @@ class Work(BaseModel):
     funders: list[Funder] = Field(default_factory=list)
 
     # Verification & enrichment (from GitHub issues)
-    linked_resources: list[LinkedResource] = Field(
-        default_factory=list
-    )
+    linked_resources: list[LinkedResource] = Field(default_factory=list)
     verified: bool = False
     verified_by: str | None = None
     verified_at: datetime | None = None

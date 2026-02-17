@@ -69,9 +69,7 @@ class TestCrossrefToWork:
 
     def test_author_family_only(self) -> None:
         """Author with only family name."""
-        msg = _make_message(
-            author=[{"family": "Mono", "affiliation": []}]
-        )
+        msg = _make_message(author=[{"family": "Mono", "affiliation": []}])
         work = _crossref_to_work(msg)
         assert work.authors[0].name == "Mono"
 

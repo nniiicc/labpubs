@@ -20,9 +20,7 @@ def _format_authors_apa(work: Work) -> str:
     for author in work.authors:
         given, family = split_author_name(author.name)
         if given and family:
-            initials = " ".join(
-                f"{p[0]}." for p in given.split()
-            )
+            initials = " ".join(f"{p[0]}." for p in given.split())
             names.append(f"{family}, {initials}")
         elif family:
             names.append(family)
@@ -136,15 +134,12 @@ def format_work(work: Work, style: str = "apa") -> str:
     formatter = formatters.get(style.lower())
     if formatter is None:
         raise ValueError(
-            f"Unsupported style: {style}. "
-            f"Supported: {', '.join(formatters)}"
+            f"Unsupported style: {style}. Supported: {', '.join(formatters)}"
         )
     return formatter(work)
 
 
-def works_to_cv_entries(
-    works: list[Work], style: str = "apa"
-) -> list[str]:
+def works_to_cv_entries(works: list[Work], style: str = "apa") -> list[str]:
     """Export works as formatted citation strings.
 
     Args:

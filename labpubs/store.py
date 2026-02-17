@@ -207,14 +207,10 @@ def _work_to_row(work: Work) -> dict[str, str | int | None]:
         "open_access_url": work.open_access_url,
         "citation_count": work.citation_count,
         "tldr": work.tldr,
-        "sources": orjson.dumps(
-            [s.value for s in work.sources]
-        ).decode(),
+        "sources": orjson.dumps([s.value for s in work.sources]).decode(),
         "verified": int(work.verified),
         "verified_by": work.verified_by,
-        "verified_at": work.verified_at.isoformat()
-        if work.verified_at
-        else None,
+        "verified_at": work.verified_at.isoformat() if work.verified_at else None,
         "verification_issue_url": work.verification_issue_url,
         "notes": work.notes,
         "first_seen": work.first_seen.isoformat() if work.first_seen else now,
@@ -331,26 +327,18 @@ class Store:
 
     def _run_migrations(self) -> None:
         """Apply schema migrations for existing databases."""
-        cursor = self._conn.execute(
-            "PRAGMA table_info(works)"
-        )
+        cursor = self._conn.execute("PRAGMA table_info(works)")
         columns = {row["name"] for row in cursor}
         if "verified" not in columns:
-            for stmt in _MIGRATION_ADD_VERIFICATION.strip().split(
-                ";"
-            ):
+            for stmt in _MIGRATION_ADD_VERIFICATION.strip().split(";"):
                 stmt = stmt.strip()
                 if stmt:
                     self._conn.execute(stmt)
 
-        cursor = self._conn.execute(
-            "PRAGMA table_info(researchers)"
-        )
+        cursor = self._conn.execute("PRAGMA table_info(researchers)")
         r_columns = {row["name"] for row in cursor}
         if "start_date" not in r_columns:
-            for stmt in (
-                _MIGRATION_ADD_RESEARCHER_FIELDS.strip().split(";")
-            ):
+            for stmt in _MIGRATION_ADD_RESEARCHER_FIELDS.strip().split(";"):
                 stmt = stmt.strip()
                 if stmt:
                     self._conn.execute(stmt)
@@ -383,9 +371,7 @@ class Store:
         Returns:
             Database row ID for the researcher.
         """
-        groups_json = (
-            orjson.dumps(groups).decode() if groups else None
-        )
+        groups_json = orjson.dumps(groups).decode() if groups else None
         cursor = self._conn.execute(
             "SELECT id FROM researchers WHERE config_key = ?",
             (config_key,),
@@ -463,8 +449,7 @@ class Store:
             return
         params.append(config_key)
         self._conn.execute(
-            f"UPDATE researchers SET {', '.join(updates)}"
-            " WHERE config_key = ?",
+            f"UPDATE researchers SET {', '.join(updates)} WHERE config_key = ?",
             params,
         )
         self._conn.commit()
@@ -488,15 +473,11 @@ class Store:
         work_id: int = cursor.lastrowid  # type: ignore[assignment]
         self._insert_work_authors(work_id, work.authors)
         self._persist_work_funding(work_id, work)
-        self._persist_linked_resources(
-            work_id, work.linked_resources
-        )
+        self._persist_linked_resources(work_id, work.linked_resources)
         self._conn.commit()
         return work_id
 
-    def _insert_work_authors(
-        self, work_id: int, authors: list[Author]
-    ) -> None:
+    def _insert_work_authors(self, work_id: int, authors: list[Author]) -> None:
         """Insert author records for a work.
 
         Args:
@@ -535,29 +516,19 @@ class Store:
             f"UPDATE works SET {set_clause} WHERE id = ?",
             (*row.values(), work_id),
         )
-        self._conn.execute(
-            "DELETE FROM work_authors WHERE work_id = ?", (work_id,)
-        )
+        self._conn.execute("DELETE FROM work_authors WHERE work_id = ?", (work_id,))
         self._insert_work_authors(work_id, work.authors)
-        self._conn.execute(
-            "DELETE FROM work_awards WHERE work_id = ?", (work_id,)
-        )
-        self._conn.execute(
-            "DELETE FROM work_funders WHERE work_id = ?", (work_id,)
-        )
+        self._conn.execute("DELETE FROM work_awards WHERE work_id = ?", (work_id,))
+        self._conn.execute("DELETE FROM work_funders WHERE work_id = ?", (work_id,))
         self._persist_work_funding(work_id, work)
         self._conn.execute(
             "DELETE FROM linked_resources WHERE work_id = ?",
             (work_id,),
         )
-        self._persist_linked_resources(
-            work_id, work.linked_resources
-        )
+        self._persist_linked_resources(work_id, work.linked_resources)
         self._conn.commit()
 
-    def link_researcher_work(
-        self, researcher_id: int, work_id: int
-    ) -> None:
+    def link_researcher_work(self, researcher_id: int, work_id: int) -> None:
         """Create a researcher-work association.
 
         Args:
@@ -580,18 +551,14 @@ class Store:
         Returns:
             Tuple of (row_id, Work) or None if not found.
         """
-        cursor = self._conn.execute(
-            "SELECT * FROM works WHERE doi = ?", (doi,)
-        )
+        cursor = self._conn.execute("SELECT * FROM works WHERE doi = ?", (doi,))
         row = cursor.fetchone()
         if row is None:
             return None
         work = self._hydrate_work(row)
         return row["id"], work
 
-    def find_work_by_title(
-        self, title: str
-    ) -> tuple[int, Work] | None:
+    def find_work_by_title(self, title: str) -> tuple[int, Work] | None:
         """Look up a work by normalized title (exact match).
 
         Args:
@@ -620,9 +587,7 @@ class Store:
             List of (id, title_normalized, doi, year,
             author_surnames).
         """
-        cursor = self._conn.execute(
-            "SELECT id, title_normalized, doi, year FROM works"
-        )
+        cursor = self._conn.execute("SELECT id, title_normalized, doi, year FROM works")
         results = []
         for row in cursor:
             authors = self._conn.execute(
@@ -672,9 +637,7 @@ class Store:
             for row in cursor
         ]
 
-    def _persist_work_funding(
-        self, work_id: int, work: Work
-    ) -> None:
+    def _persist_work_funding(self, work_id: int, work: Work) -> None:
         """Persist funding data (awards/funders) for a work.
 
         Args:
@@ -752,9 +715,7 @@ class Store:
         )
         return cursor.lastrowid  # type: ignore[return-value]
 
-    def upsert_award(
-        self, award: Award, funder_db_id: int | None = None
-    ) -> int:
+    def upsert_award(self, award: Award, funder_db_id: int | None = None) -> int:
         """Insert or update an award record.
 
         Args:
@@ -962,15 +923,11 @@ class Store:
             funding_type=row["funding_type"],
             start_year=row["start_year"],
             lead_investigator=li,
-            investigators=self._load_award_investigators(
-                row["id"]
-            ),
+            investigators=self._load_award_investigators(row["id"]),
             funded_outputs_count=row["funded_outputs_count"],
         )
 
-    def _load_award_investigators(
-        self, award_db_id: int
-    ) -> list[Investigator]:
+    def _load_award_investigators(self, award_db_id: int) -> list[Investigator]:
         """Load investigators for an award.
 
         Args:
@@ -1009,9 +966,7 @@ class Store:
         work.authors = self._load_work_authors(row["id"])
         work.awards = self._load_work_awards(row["id"])
         work.funders = self._load_work_funders(row["id"])
-        work.linked_resources = self._load_linked_resources(
-            row["id"]
-        )
+        work.linked_resources = self._load_linked_resources(row["id"])
         return work
 
     def get_all_funders(self) -> list[Funder]:
@@ -1020,14 +975,10 @@ class Store:
         Returns:
             List of Funder objects.
         """
-        cursor = self._conn.execute(
-            "SELECT * FROM funders ORDER BY name"
-        )
+        cursor = self._conn.execute("SELECT * FROM funders ORDER BY name")
         return [self._row_to_funder(row) for row in cursor]
 
-    def get_all_awards(
-        self, funder_name: str | None = None
-    ) -> list[Award]:
+    def get_all_awards(self, funder_name: str | None = None) -> list[Award]:
         """Get all awards, optionally filtered by funder.
 
         Args:
@@ -1045,15 +996,11 @@ class Store:
                 (f"%{funder_name.lower()}%",),
             )
         else:
-            cursor = self._conn.execute(
-                "SELECT * FROM awards ORDER BY start_year DESC"
-            )
+            cursor = self._conn.execute("SELECT * FROM awards ORDER BY start_year DESC")
 
         return [self._row_to_award(row) for row in cursor]
 
-    def get_award_by_funder_award_id(
-        self, funder_award_id: str
-    ) -> Award | None:
+    def get_award_by_funder_award_id(self, funder_award_id: str) -> Award | None:
         """Look up an award by its funder-assigned grant number.
 
         Args:
@@ -1177,9 +1124,7 @@ class Store:
         params: list[str | int] = []
 
         if researcher_id is not None:
-            query += (
-                " JOIN researcher_works rw ON w.id = rw.work_id"
-            )
+            query += " JOIN researcher_works rw ON w.id = rw.work_id"
             conditions.append("rw.researcher_id = ?")
             params.append(researcher_id)
 
@@ -1206,9 +1151,7 @@ class Store:
             works.append(self._hydrate_work(row))
         return works
 
-    def get_new_works(
-        self, since: datetime | None = None
-    ) -> list[Work]:
+    def get_new_works(self, since: datetime | None = None) -> list[Work]:
         """Get works first seen after a given timestamp.
 
         Args:
@@ -1230,9 +1173,7 @@ class Store:
             works.append(self._hydrate_work(row))
         return works
 
-    def search_works(
-        self, query: str, limit: int = 20
-    ) -> list[Work]:
+    def search_works(self, query: str, limit: int = 20) -> list[Work]:
         """Full-text search across titles and abstracts.
 
         Args:
@@ -1261,15 +1202,11 @@ class Store:
         Returns:
             List of Author objects for configured researchers.
         """
-        cursor = self._conn.execute(
-            "SELECT * FROM researchers ORDER BY name"
-        )
+        cursor = self._conn.execute("SELECT * FROM researchers ORDER BY name")
         results: list[Author] = []
         for row in cursor:
             groups_raw = row["groups"]
-            groups = (
-                orjson.loads(groups_raw) if groups_raw else []
-            )
+            groups = orjson.loads(groups_raw) if groups_raw else []
             results.append(
                 Author(
                     name=row["name"],
@@ -1332,16 +1269,12 @@ class Store:
                 result.timestamp.isoformat(),
                 result.researchers_checked,
                 len(result.new_works),
-                orjson.dumps(result.errors).decode()
-                if result.errors
-                else None,
+                orjson.dumps(result.errors).decode() if result.errors else None,
             ),
         )
         self._conn.commit()
 
-    def _load_linked_resources(
-        self, work_id: int
-    ) -> list[LinkedResource]:
+    def _load_linked_resources(self, work_id: int) -> list[LinkedResource]:
         """Load linked resources for a work.
 
         Args:
@@ -1506,9 +1439,7 @@ class Store:
         )
         return [self._hydrate_work(row) for row in cursor]
 
-    def find_work_by_openalex_id(
-        self, openalex_id: str
-    ) -> tuple[int, Work] | None:
+    def find_work_by_openalex_id(self, openalex_id: str) -> tuple[int, Work] | None:
         """Look up a work by OpenAlex ID.
 
         Args:
@@ -1533,9 +1464,7 @@ class Store:
             Dict with total, verified, unverified, has_code,
             has_data counts.
         """
-        total = self._conn.execute(
-            "SELECT COUNT(*) FROM works"
-        ).fetchone()[0]
+        total = self._conn.execute("SELECT COUNT(*) FROM works").fetchone()[0]
         verified = self._conn.execute(
             "SELECT COUNT(*) FROM works WHERE verified = 1"
         ).fetchone()[0]

@@ -57,9 +57,7 @@ def main(ctx: click.Context, config: str, verbose: bool) -> None:
 
 
 @main.command()
-@click.option(
-    "--researcher", default=None, help="Sync a specific researcher."
-)
+@click.option("--researcher", default=None, help="Sync a specific researcher.")
 @click.option(
     "--with-issues",
     is_flag=True,
@@ -101,9 +99,7 @@ def sync(
 @main.command("list")
 @click.option("--researcher", default=None, help="Filter by researcher.")
 @click.option("--year", default=None, type=int, help="Filter by year.")
-@click.option(
-    "--new", "show_new", is_flag=True, help="Show only new works."
-)
+@click.option("--new", "show_new", is_flag=True, help="Show only new works.")
 @click.option(
     "--days",
     default=7,
@@ -189,20 +185,14 @@ def show(ctx: click.Context, query: str) -> None:
     click.echo(f"Type: {w.work_type.value}")
     click.echo(f"Venue: {w.venue or 'unknown'}")
     click.echo(f"DOI: {w.doi or 'none'}")
-    click.echo(
-        f"Authors: {', '.join(a.name for a in w.authors)}"
-    )
+    click.echo(f"Authors: {', '.join(a.name for a in w.authors)}")
     if w.abstract:
         click.echo(f"\nAbstract: {w.abstract}")
     if w.tldr:
         click.echo(f"\nTLDR: {w.tldr}")
-    click.echo(
-        f"\nOpen Access: {w.open_access_url or 'no'}"
-    )
+    click.echo(f"\nOpen Access: {w.open_access_url or 'no'}")
     click.echo(f"Citations: {w.citation_count or 0}")
-    click.echo(
-        f"Sources: {', '.join(s.value for s in w.sources)}"
-    )
+    click.echo(f"Sources: {', '.join(s.value for s in w.sources)}")
 
 
 @main.command()
@@ -229,9 +219,7 @@ def researchers(ctx: click.Context) -> None:
             date_str = ""
 
         # Group membership
-        group_str = (
-            f" {{{', '.join(r.groups)}}}" if r.groups else ""
-        )
+        group_str = f" {{{', '.join(r.groups)}}}" if r.groups else ""
 
         click.echo(f"  {r.name}{id_str}{date_str}{group_str}")
 
@@ -263,10 +251,7 @@ def awards(ctx: click.Context, funder: str | None) -> None:
         funder_name = a.funder.name if a.funder else "Unknown"
         grant_id = a.funder_award_id or "N/A"
         name = a.display_name or "Untitled"
-        click.echo(
-            f"  [{grant_id}] {name} -- {funder_name}"
-            f" ({a.start_year or '?'})"
-        )
+        click.echo(f"  [{grant_id}] {name} -- {funder_name} ({a.start_year or '?'})")
 
 
 @main.command("award-details")
@@ -308,18 +293,12 @@ def issues(ctx: click.Context) -> None:
 
 
 @issues.command("create")
-@click.option(
-    "--researcher", default=None, help="Filter by researcher."
-)
+@click.option("--researcher", default=None, help="Filter by researcher.")
 @click.pass_context
-def issues_create(
-    ctx: click.Context, researcher: str | None
-) -> None:
+def issues_create(ctx: click.Context, researcher: str | None) -> None:
     """Create GitHub issues for unverified publications."""
     engine = _get_engine(ctx.obj["config"])
-    urls = asyncio.run(
-        engine.create_verification_issues(researcher)
-    )
+    urls = asyncio.run(engine.create_verification_issues(researcher))
     if urls:
         click.echo(f"Created {len(urls)} issue(s):")
         for url in urls:
@@ -362,9 +341,7 @@ def export() -> None:
 @export.command()
 @click.option("--researcher", default=None, help="Filter by researcher.")
 @click.option("--year", default=None, type=int, help="Filter by year.")
-@click.option(
-    "-o", "--output", default=None, help="Output file path."
-)
+@click.option("-o", "--output", default=None, help="Output file path.")
 @click.pass_context
 def bibtex(
     ctx: click.Context,
@@ -386,9 +363,7 @@ def bibtex(
 @export.command()
 @click.option("--researcher", default=None, help="Filter by researcher.")
 @click.option("--year", default=None, type=int, help="Filter by year.")
-@click.option(
-    "-o", "--output", default=None, help="Output file path."
-)
+@click.option("-o", "--output", default=None, help="Output file path.")
 @click.pass_context
 def json(
     ctx: click.Context,
@@ -411,9 +386,7 @@ def json(
 @export.command("csl-json")
 @click.option("--researcher", default=None, help="Filter by researcher.")
 @click.option("--year", default=None, type=int, help="Filter by year.")
-@click.option(
-    "-o", "--output", default=None, help="Output file path."
-)
+@click.option("-o", "--output", default=None, help="Output file path.")
 @click.pass_context
 def csl_json(
     ctx: click.Context,
@@ -434,9 +407,7 @@ def csl_json(
 
 
 @export.command()
-@click.option(
-    "--researcher", required=True, help="Researcher name."
-)
+@click.option("--researcher", required=True, help="Researcher name.")
 @click.option("--year", default=None, type=int, help="Filter by year.")
 @click.option(
     "--style",
@@ -453,9 +424,7 @@ def cv(
 ) -> None:
     """Export formatted citation strings for CV use."""
     engine = _get_engine(ctx.obj["config"])
-    entries = engine.export_cv_entries(
-        researcher=researcher, year=year, style=style
-    )
+    entries = engine.export_cv_entries(researcher=researcher, year=year, style=style)
     for entry in entries:
         click.echo(entry)
         click.echo()
@@ -471,9 +440,7 @@ def cv(
     type=click.Choice(["markdown", "json", "csv"]),
     help="Report format.",
 )
-@click.option(
-    "-o", "--output", default=None, help="Output file path."
-)
+@click.option("-o", "--output", default=None, help="Output file path.")
 @click.pass_context
 def grant_report(
     ctx: click.Context,
@@ -505,18 +472,11 @@ def setup(ctx: click.Context) -> None:
 
     for rc in engine.config.researchers:
         if rc.openalex_id:
-            click.echo(
-                f"{rc.name}: OpenAlex ID already set "
-                f"({rc.openalex_id})"
-            )
+            click.echo(f"{rc.name}: OpenAlex ID already set ({rc.openalex_id})")
             continue
 
         click.echo(f"\nResolving IDs for: {rc.name}")
-        candidates = asyncio.run(
-            engine.resolve_researcher_ids(
-                rc.name, rc.affiliation
-            )
-        )
+        candidates = asyncio.run(engine.resolve_researcher_ids(rc.name, rc.affiliation))
 
         if not candidates:
             click.echo("  No candidates found.")
@@ -527,13 +487,9 @@ def setup(ctx: click.Context) -> None:
             aff = c.affiliation or "no affiliation"
             click.echo(f"  [{i + 1}] {c.name} -- {aff}")
             if c.openalex_id:
-                click.echo(
-                    f"      OpenAlex: {c.openalex_id}"
-                )
+                click.echo(f"      OpenAlex: {c.openalex_id}")
             if c.semantic_scholar_id:
-                click.echo(
-                    f"      S2: {c.semantic_scholar_id}"
-                )
+                click.echo(f"      S2: {c.semantic_scholar_id}")
 
         choice = click.prompt(
             "  Select candidate (0 to skip)",
@@ -680,15 +636,11 @@ def init_config(
     )
 
 
-def _review_openalex(
-    result: ResolveResult, non_interactive: bool
-) -> None:
+def _review_openalex(result: ResolveResult, non_interactive: bool) -> None:
     """Review and optionally select an OpenAlex ID."""
     if result.openalex_id:
         label = "ORCID match" if result.openalex_confident else "CSV"
-        click.echo(
-            f"  {result.name}: OpenAlex {result.openalex_id} ({label})"
-        )
+        click.echo(f"  {result.name}: OpenAlex {result.openalex_id} ({label})")
         return
 
     candidates = result.openalex_candidates
@@ -709,25 +661,18 @@ def _review_openalex(
         click.echo(f"    [{i + 1}] {c.name} -- {aff}")
         if c.openalex_id:
             click.echo(f"        ID: {c.openalex_id}")
-    choice = click.prompt(
-        "    Select (0 to skip)", type=int, default=0
-    )
+    choice = click.prompt("    Select (0 to skip)", type=int, default=0)
     if 1 <= choice <= len(candidates):
         selected = candidates[choice - 1]
         result.openalex_id = selected.openalex_id
         click.echo(f"    Selected: {selected.name}")
 
 
-def _review_s2(
-    result: ResolveResult, non_interactive: bool
-) -> None:
+def _review_s2(result: ResolveResult, non_interactive: bool) -> None:
     """Review and optionally select a Semantic Scholar ID."""
     if result.semantic_scholar_id:
         label = "ORCID match" if result.s2_confident else "CSV"
-        click.echo(
-            f"  {result.name}: S2 {result.semantic_scholar_id} "
-            f"({label})"
-        )
+        click.echo(f"  {result.name}: S2 {result.semantic_scholar_id} ({label})")
         return
 
     candidates = result.s2_candidates
@@ -748,9 +693,7 @@ def _review_s2(
         click.echo(f"    [{i + 1}] {c.name} -- {aff}")
         if c.semantic_scholar_id:
             click.echo(f"        ID: {c.semantic_scholar_id}")
-    choice = click.prompt(
-        "    Select (0 to skip)", type=int, default=0
-    )
+    choice = click.prompt("    Select (0 to skip)", type=int, default=0)
     if 1 <= choice <= len(candidates):
         selected = candidates[choice - 1]
         result.semantic_scholar_id = selected.semantic_scholar_id

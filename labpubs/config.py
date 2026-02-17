@@ -91,12 +91,8 @@ class GitHubIntegrationConfig(BaseModel):
 
     enabled: bool = True
     repo: str
-    author_github_map: dict[str, str] = Field(
-        default_factory=dict
-    )
-    labels: GitHubLabelsConfig = Field(
-        default_factory=GitHubLabelsConfig
-    )
+    author_github_map: dict[str, str] = Field(default_factory=dict)
+    labels: GitHubLabelsConfig = Field(default_factory=GitHubLabelsConfig)
     year_labels: bool = True
     author_labels: bool = True
 
@@ -112,16 +108,10 @@ class LabPubsConfig(BaseModel):
     sources: list[str] = Field(
         default_factory=lambda: ["openalex", "semantic_scholar", "crossref"]
     )
-    notifications: NotificationConfig = Field(
-        default_factory=NotificationConfig
-    )
+    notifications: NotificationConfig = Field(default_factory=NotificationConfig)
     exports: ExportConfig = Field(default_factory=ExportConfig)
-    grant_aliases: dict[str, GrantAliasConfig] = Field(
-        default_factory=dict
-    )
-    tracked_awards: list[TrackedAwardConfig] = Field(
-        default_factory=list
-    )
+    grant_aliases: dict[str, GrantAliasConfig] = Field(default_factory=dict)
+    tracked_awards: list[TrackedAwardConfig] = Field(default_factory=list)
     github_integration: GitHubIntegrationConfig | None = None
 
     @property

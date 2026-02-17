@@ -28,9 +28,7 @@ def _format_html_digest(works: list[Work]) -> str:
         venue = work.venue or "venue unknown"
         doi_link = ""
         if work.doi:
-            doi_link = (
-                f' | <a href="https://doi.org/{work.doi}">DOI</a>'
-            )
+            doi_link = f' | <a href="https://doi.org/{work.doi}">DOI</a>'
 
         items.append(
             f"<li><strong>{work.title}</strong> ({work.year})"
@@ -38,10 +36,7 @@ def _format_html_digest(works: list[Work]) -> str:
             f"<br><em>{venue}</em>{doi_link}</li>"
         )
 
-    body = (
-        f"<h2>New publications ({len(works)})</h2>"
-        f"<ul>{''.join(items)}</ul>"
-    )
+    body = f"<h2>New publications ({len(works)})</h2><ul>{''.join(items)}</ul>"
     return body
 
 

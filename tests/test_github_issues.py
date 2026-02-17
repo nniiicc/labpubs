@@ -135,8 +135,7 @@ class TestIssueTemplate:
         """Issue title includes paper title."""
         title = render_issue_title(review_work)
         assert title == (
-            "New publication: Computational Approaches "
-            "to Federal Rulemaking"
+            "New publication: Computational Approaches to Federal Rulemaking"
         )
 
     def test_render_body_contains_metadata(
@@ -199,9 +198,7 @@ class TestIssueTemplate:
         """Author labels omitted when disabled."""
         gh_config.author_labels = False
         labels = get_issue_labels(review_work, gh_config)
-        assert not any(
-            lbl.startswith("author-") for lbl in labels
-        )
+        assert not any(lbl.startswith("author-") for lbl in labels)
 
     def test_get_labels_no_year_labels(
         self, review_work: Work, gh_config: GitHubIntegrationConfig
@@ -261,10 +258,7 @@ https://github.com/mylab/data-pipeline
 """
         enrichments = parse_issue_enrichments(body)
         assert len(enrichments["code_repos"]) == 2
-        assert (
-            "https://github.com/mylab/analysis-code"
-            in enrichments["code_repos"]
-        )
+        assert "https://github.com/mylab/analysis-code" in enrichments["code_repos"]
 
     def test_parse_datasets(self) -> None:
         """Dataset URLs extracted from datasets section."""
@@ -282,10 +276,7 @@ https://osf.io/abcde
 """
         enrichments = parse_issue_enrichments(body)
         assert len(enrichments["datasets"]) == 2
-        assert (
-            "https://zenodo.org/record/12345"
-            in enrichments["datasets"]
-        )
+        assert "https://zenodo.org/record/12345" in enrichments["datasets"]
 
     def test_parse_empty_sections(self) -> None:
         """Empty sections return empty lists."""
@@ -348,13 +339,9 @@ The analysis used their HPC cluster.
     def test_enrichments_to_linked_resources(self) -> None:
         """Enrichments dict converted to LinkedResource list."""
         enrichments = {
-            "code_repos": [
-                "https://github.com/mylab/analysis"
-            ],
+            "code_repos": ["https://github.com/mylab/analysis"],
             "datasets": ["https://zenodo.org/record/123"],
-            "other_resources": [
-                "https://example.com/slides.pdf"
-            ],
+            "other_resources": ["https://example.com/slides.pdf"],
         }
         resources = enrichments_to_linked_resources(enrichments)
         assert len(resources) == 3
@@ -416,9 +403,7 @@ class TestStoreVerification:
         review_work.verified = True
         review_work.verified_by = "janedoe"
         review_work.verified_at = datetime(2025, 8, 1, 10, 0, 0)
-        review_work.verification_issue_url = (
-            "https://github.com/mylab/pubs/issues/1"
-        )
+        review_work.verification_issue_url = "https://github.com/mylab/pubs/issues/1"
         review_work.notes = "Confirmed correct"
         gh_store.insert_work(review_work)
 
@@ -432,9 +417,7 @@ class TestStoreVerification:
         )
         assert hydrated.notes == "Confirmed correct"
 
-    def test_get_unverified_works(
-        self, gh_store: Store, review_work: Work
-    ) -> None:
+    def test_get_unverified_works(self, gh_store: Store, review_work: Work) -> None:
         """Unverified works returned correctly."""
         gh_store.insert_work(review_work)
         unverified = gh_store.get_unverified_works()
@@ -448,9 +431,7 @@ class TestStoreVerification:
         unverified = gh_store.get_unverified_works()
         assert len(unverified) == 0
 
-    def test_get_works_with_code(
-        self, gh_store: Store, review_work: Work
-    ) -> None:
+    def test_get_works_with_code(self, gh_store: Store, review_work: Work) -> None:
         """Works with code repos found."""
         review_work.linked_resources = [
             LinkedResource(
@@ -463,9 +444,7 @@ class TestStoreVerification:
         assert len(code_works) == 1
         assert code_works[0].title == review_work.title
 
-    def test_get_works_with_data(
-        self, gh_store: Store, review_work: Work
-    ) -> None:
+    def test_get_works_with_data(self, gh_store: Store, review_work: Work) -> None:
         """Works with datasets found."""
         review_work.linked_resources = [
             LinkedResource(
@@ -485,9 +464,7 @@ class TestStoreVerification:
         assert gh_store.get_works_with_code() == []
         assert gh_store.get_works_with_data() == []
 
-    def test_mark_work_verified(
-        self, gh_store: Store, review_work: Work
-    ) -> None:
+    def test_mark_work_verified(self, gh_store: Store, review_work: Work) -> None:
         """mark_work_verified updates fields."""
         work_id = gh_store.insert_work(review_work)
         gh_store.mark_work_verified(
@@ -503,9 +480,7 @@ class TestStoreVerification:
         assert hydrated.verified_by == "janedoe"
         assert hydrated.notes == "All good"
 
-    def test_mark_work_unverified(
-        self, gh_store: Store, review_work: Work
-    ) -> None:
+    def test_mark_work_unverified(self, gh_store: Store, review_work: Work) -> None:
         """mark_work_unverified resets status."""
         work_id = gh_store.insert_work(review_work)
         gh_store.mark_work_verified(work_id, verified_by="user")
@@ -522,42 +497,29 @@ class TestStoreVerification:
         assert hydrated.verified is False
         assert hydrated.verified_by is None
 
-    def test_add_linked_resource(
-        self, gh_store: Store, review_work: Work
-    ) -> None:
+    def test_add_linked_resource(self, gh_store: Store, review_work: Work) -> None:
         """Individual linked resource can be added."""
         work_id = gh_store.insert_work(review_work)
         res = LinkedResource(
             url="https://github.com/mylab/new-code",
             resource_type="code",
         )
-        gh_store.add_linked_resource(
-            work_id, res, added_by="janedoe"
-        )
+        gh_store.add_linked_resource(work_id, res, added_by="janedoe")
         result = gh_store.find_work_by_doi(review_work.doi)
         assert result is not None
         _, hydrated = result
         assert len(hydrated.linked_resources) == 1
-        assert (
-            hydrated.linked_resources[0].url
-            == "https://github.com/mylab/new-code"
-        )
+        assert hydrated.linked_resources[0].url == "https://github.com/mylab/new-code"
 
-    def test_find_work_by_openalex_id(
-        self, gh_store: Store, review_work: Work
-    ) -> None:
+    def test_find_work_by_openalex_id(self, gh_store: Store, review_work: Work) -> None:
         """Work found by OpenAlex ID."""
         gh_store.insert_work(review_work)
-        result = gh_store.find_work_by_openalex_id(
-            "W1234567890"
-        )
+        result = gh_store.find_work_by_openalex_id("W1234567890")
         assert result is not None
         _, hydrated = result
         assert hydrated.title == review_work.title
 
-    def test_verification_stats(
-        self, gh_store: Store, review_work: Work
-    ) -> None:
+    def test_verification_stats(self, gh_store: Store, review_work: Work) -> None:
         """Verification stats computed correctly."""
         work_id = gh_store.insert_work(review_work)
         stats = gh_store.get_verification_stats()
@@ -606,6 +568,4 @@ class TestStoreVerification:
         assert result is not None
         _, hydrated = result
         assert len(hydrated.linked_resources) == 2
-        assert hydrated.linked_resources[0].url == (
-            "https://github.com/new"
-        )
+        assert hydrated.linked_resources[0].url == ("https://github.com/new")

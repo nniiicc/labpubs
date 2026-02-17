@@ -40,9 +40,7 @@ class TestResolveAndFetchWorks:
     """Tests for SemanticScholarBackend.resolve_and_fetch_works."""
 
     def setup_method(self):
-        self.backend = SemanticScholarBackend.__new__(
-            SemanticScholarBackend
-        )
+        self.backend = SemanticScholarBackend.__new__(SemanticScholarBackend)
         self.backend._client = MagicMock()
 
     def test_stored_id_only_no_orcid(self):
@@ -51,9 +49,7 @@ class TestResolveAndFetchWorks:
         self.backend._client.get_author_papers.return_value = [paper]
 
         works, resolved_id = _run(
-            self.backend.resolve_and_fetch_works(
-                stored_id="111", orcid=None
-            )
+            self.backend.resolve_and_fetch_works(stored_id="111", orcid=None)
         )
 
         assert len(works) == 1
@@ -105,9 +101,7 @@ class TestResolveAndFetchWorks:
         assert resolved_id == "111"
         assert len(works) == 1
         # get_author_papers called only once (IDs are deduplicated)
-        assert (
-            self.backend._client.get_author_papers.call_count == 1
-        )
+        assert self.backend._client.get_author_papers.call_count == 1
 
     def test_no_stored_id_with_orcid(self):
         """No stored ID but ORCID resolves; fetches from resolved ID."""
@@ -129,9 +123,7 @@ class TestResolveAndFetchWorks:
 
     def test_orcid_lookup_fails(self):
         """ORCID lookup raises exception; falls back to stored ID."""
-        self.backend._client.get_author.side_effect = Exception(
-            "Not found"
-        )
+        self.backend._client.get_author.side_effect = Exception("Not found")
 
         paper = _make_mock_paper("p1", "Paper A")
         self.backend._client.get_author_papers.return_value = [paper]
@@ -185,16 +177,12 @@ class TestResolveAndFetchWorks:
                 )
             )
 
-        assert any(
-            "fragmentation" in r.message for r in caplog.records
-        )
+        assert any("fragmentation" in r.message for r in caplog.records)
 
     def test_no_stored_id_no_orcid(self):
         """With neither stored ID nor ORCID, returns empty."""
         works, resolved_id = _run(
-            self.backend.resolve_and_fetch_works(
-                stored_id=None, orcid=None
-            )
+            self.backend.resolve_and_fetch_works(stored_id=None, orcid=None)
         )
 
         assert works == []
@@ -218,21 +206,15 @@ class TestResolveAndFetchWorks:
         assert resolved_id == "222"
         assert len(works) == 1
         # Only called once (empty string is falsy, not added to set)
-        assert (
-            self.backend._client.get_author_papers.call_count == 1
-        )
+        assert self.backend._client.get_author_papers.call_count == 1
 
     def test_name_fallback_when_orcid_fails(self):
         """Name-based search is used when ORCID lookup fails."""
-        self.backend._client.get_author.side_effect = Exception(
-            "Not found"
-        )
+        self.backend._client.get_author.side_effect = Exception("Not found")
 
         mock_candidate = MagicMock()
         mock_candidate.authorId = "333"
-        self.backend._client.search_author.return_value = [
-            mock_candidate
-        ]
+        self.backend._client.search_author.return_value = [mock_candidate]
 
         paper = _make_mock_paper("p1", "Paper A")
         self.backend._client.get_author_papers.return_value = [paper]
@@ -247,9 +229,7 @@ class TestResolveAndFetchWorks:
 
         assert resolved_id == "333"
         assert len(works) == 1
-        self.backend._client.search_author.assert_called_once_with(
-            "Jane Doe", limit=5
-        )
+        self.backend._client.search_author.assert_called_once_with("Jane Doe", limit=5)
 
     def test_name_fallback_not_used_when_orcid_succeeds(self):
         """Name search is skipped when ORCID resolution succeeds."""
@@ -273,15 +253,11 @@ class TestResolveAndFetchWorks:
 
     def test_name_fallback_with_stored_id(self):
         """Name search discovers additional IDs beyond stored ID."""
-        self.backend._client.get_author.side_effect = Exception(
-            "Not found"
-        )
+        self.backend._client.get_author.side_effect = Exception("Not found")
 
         mock_candidate = MagicMock()
         mock_candidate.authorId = "444"
-        self.backend._client.search_author.return_value = [
-            mock_candidate
-        ]
+        self.backend._client.search_author.return_value = [mock_candidate]
 
         paper_a = _make_mock_paper("p1", "Paper A")
         paper_b = _make_mock_paper("p2", "Paper B")
@@ -300,9 +276,7 @@ class TestResolveAndFetchWorks:
 
         assert len(works) == 2
         assert resolved_id == "444"
-        assert (
-            self.backend._client.get_author_papers.call_count == 2
-        )
+        assert self.backend._client.get_author_papers.call_count == 2
 
     def test_name_fallback_no_name_no_orcid(self):
         """Without name or ORCID, only stored ID is used."""
@@ -310,9 +284,7 @@ class TestResolveAndFetchWorks:
         self.backend._client.get_author_papers.return_value = [paper]
 
         works, resolved_id = _run(
-            self.backend.resolve_and_fetch_works(
-                stored_id="111", orcid=None, name=None
-            )
+            self.backend.resolve_and_fetch_works(stored_id="111", orcid=None, name=None)
         )
 
         assert len(works) == 1
@@ -335,8 +307,7 @@ class TestStoreUpdateResearcherSourceId:
             semantic_scholar_id="new_id",
         )
         cursor = tmp_db._conn.execute(
-            "SELECT semantic_scholar_id FROM researchers "
-            "WHERE config_key = ?",
+            "SELECT semantic_scholar_id FROM researchers WHERE config_key = ?",
             ("Martin",),
         )
         row = cursor.fetchone()
@@ -354,8 +325,7 @@ class TestStoreUpdateResearcherSourceId:
             openalex_id="A_new",
         )
         cursor = tmp_db._conn.execute(
-            "SELECT openalex_id FROM researchers "
-            "WHERE config_key = ?",
+            "SELECT openalex_id FROM researchers WHERE config_key = ?",
             ("Jane",),
         )
         row = cursor.fetchone()
@@ -370,8 +340,7 @@ class TestStoreUpdateResearcherSourceId:
         )
         tmp_db.update_researcher_source_id(config_key="Bob")
         cursor = tmp_db._conn.execute(
-            "SELECT semantic_scholar_id FROM researchers "
-            "WHERE config_key = ?",
+            "SELECT semantic_scholar_id FROM researchers WHERE config_key = ?",
             ("Bob",),
         )
         row = cursor.fetchone()

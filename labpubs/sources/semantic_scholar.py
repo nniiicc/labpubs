@@ -81,9 +81,7 @@ def _s2_paper_to_model(paper: object) -> Work:
     elif isinstance(tldr_obj, dict):
         tldr = tldr_obj.get("text")
 
-    venue = getattr(paper, "venue", None) or getattr(
-        paper, "journal", None
-    )
+    venue = getattr(paper, "venue", None) or getattr(paper, "journal", None)
     if venue and hasattr(venue, "name"):
         venue = venue.name
 
@@ -136,14 +134,22 @@ class SemanticScholarBackend:
         )
 
     _PAPER_FIELDS = [
-        "title", "authors", "publicationDate", "year", "venue",
-        "journal", "publicationTypes", "externalIds", "abstract",
-        "isOpenAccess", "openAccessPdf", "citationCount", "paperId",
+        "title",
+        "authors",
+        "publicationDate",
+        "year",
+        "venue",
+        "journal",
+        "publicationTypes",
+        "externalIds",
+        "abstract",
+        "isOpenAccess",
+        "openAccessPdf",
+        "citationCount",
+        "paperId",
     ]
 
-    def _fetch_sync(
-        self, author_id: str, since: date | None
-    ) -> list[Work]:
+    def _fetch_sync(self, author_id: str, since: date | None) -> list[Work]:
         """Synchronous fetch implementation using paginated endpoint.
 
         Args:
@@ -162,11 +168,7 @@ class SemanticScholarBackend:
             )
             for paper in papers:
                 work = _s2_paper_to_model(paper)
-                if (
-                    since
-                    and work.publication_date
-                    and work.publication_date < since
-                ):
+                if since and work.publication_date and work.publication_date < since:
                     continue
                 results.append(work)
         except Exception:
@@ -239,10 +241,7 @@ class SemanticScholarBackend:
                     if resolved_id:
                         orcid_found = True
                         author_ids.add(resolved_id)
-                        if (
-                            stored_id
-                            and resolved_id != stored_id
-                        ):
+                        if stored_id and resolved_id != stored_id:
                             logger.warning(
                                 "S2 profile fragmentation detected "
                                 "for ORCID %s: stored ID %s, "
@@ -252,9 +251,7 @@ class SemanticScholarBackend:
                                 resolved_id,
                             )
             except Exception:
-                logger.debug(
-                    "ORCID %s not found in Semantic Scholar", orcid
-                )
+                logger.debug("ORCID %s not found in Semantic Scholar", orcid)
 
         # Strategy 2: Name-based search fallback
         if not orcid_found and name:
@@ -271,15 +268,12 @@ class SemanticScholarBackend:
                         if resolved_id is None:
                             resolved_id = aid
                         logger.debug(
-                            "S2 name search found candidate %s "
-                            "for '%s'",
+                            "S2 name search found candidate %s for '%s'",
                             aid,
                             name,
                         )
             except Exception:
-                logger.debug(
-                    "S2 name search failed for '%s'", name
-                )
+                logger.debug("S2 name search failed for '%s'", name)
 
         if not author_ids:
             return [], None
@@ -299,9 +293,7 @@ class SemanticScholarBackend:
 
         return all_works, resolved_id
 
-    async def resolve_author_by_orcid(
-        self, orcid: str
-    ) -> Author | None:
+    async def resolve_author_by_orcid(self, orcid: str) -> Author | None:
         """Look up a Semantic Scholar author directly by ORCID.
 
         Args:
@@ -322,15 +314,11 @@ class SemanticScholarBackend:
             if author:
                 return Author(
                     name=getattr(author, "name", "Unknown"),
-                    semantic_scholar_id=getattr(
-                        author, "authorId", None
-                    ),
+                    semantic_scholar_id=getattr(author, "authorId", None),
                     orcid=orcid,
                 )
         except Exception:
-            logger.debug(
-                "ORCID %s not found in Semantic Scholar", orcid
-            )
+            logger.debug("ORCID %s not found in Semantic Scholar", orcid)
         return None
 
     async def resolve_author_id(
@@ -351,9 +339,7 @@ class SemanticScholarBackend:
             None, partial(self._resolve_sync, name, affiliation)
         )
 
-    def _resolve_sync(
-        self, name: str, affiliation: str | None
-    ) -> list[Author]:
+    def _resolve_sync(self, name: str, affiliation: str | None) -> list[Author]:
         """Synchronous author resolution.
 
         Args:
@@ -370,18 +356,12 @@ class SemanticScholarBackend:
                 candidates.append(
                     Author(
                         name=getattr(a, "name", "Unknown"),
-                        semantic_scholar_id=getattr(
-                            a, "authorId", None
-                        ),
-                        affiliation=getattr(a, "affiliations", [None])[
-                            0
-                        ]
+                        semantic_scholar_id=getattr(a, "authorId", None),
+                        affiliation=getattr(a, "affiliations", [None])[0]
                         if getattr(a, "affiliations", None)
                         else None,
                     )
                 )
         except Exception:
-            logger.exception(
-                "Error resolving author '%s' in S2", name
-            )
+            logger.exception("Error resolving author '%s' in S2", name)
         return candidates
