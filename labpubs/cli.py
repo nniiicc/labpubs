@@ -700,6 +700,67 @@ def _review_s2(result: ResolveResult, non_interactive: bool) -> None:
         click.echo(f"    Selected: {selected.name}")
 
 
+@main.group()
+def ingest() -> None:
+    """Ingest publications from email alerts."""
+
+
+@ingest.command("scholar-alerts")
+@click.option(
+    "--since",
+    default=None,
+    help="Only process emails since this ISO date.",
+)
+@click.option(
+    "--unseen-only/--all",
+    default=True,
+    help="Process only unread emails (default) or all.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Parse and display without saving to database.",
+)
+@click.pass_context
+def scholar_alerts(
+    ctx: click.Context,
+    since: str | None,
+    unseen_only: bool,
+    dry_run: bool,
+) -> None:
+    """Ingest publications from Google Scholar alert emails."""
+    engine = _get_engine(ctx.obj["config"])
+    result = asyncio.run(
+        engine.ingest_scholar_alerts(
+            since=since,
+            unseen_only=unseen_only,
+            dry_run=dry_run,
+        )
+    )
+
+    click.echo(f"Ingest complete at {result.timestamp.isoformat()}")
+    click.echo(f"Emails checked: {result.emails_checked}")
+    click.echo(f"Items found: {result.items_found}")
+    click.echo(f"New publications: {len(result.new_works)}")
+    click.echo(f"Updated: {len(result.updated_works)}")
+    if result.skipped_emails:
+        click.echo(f"Skipped (already processed): {result.skipped_emails}")
+
+    if result.new_works:
+        click.echo("\nNew publications:")
+        for w in result.new_works:
+            venue = w.venue or "venue unknown"
+            click.echo(f"  - {w.title} ({w.year}) -- {venue}")
+
+    if result.errors:
+        click.echo(f"\nErrors ({len(result.errors)}):")
+        for e in result.errors:
+            click.echo(f"  - {e}")
+
+    if dry_run:
+        click.echo("\n(dry run -- nothing was saved)")
+
+
 @main.command("mcp")
 @click.pass_context
 def mcp_serve(ctx: click.Context) -> None:

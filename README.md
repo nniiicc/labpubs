@@ -17,6 +17,7 @@
 - **Export formats** -- BibTeX, CSL-JSON, CV citation strings, JSON, grant reports (Markdown/CSV)
 - **GitHub Issues integration** -- create verification issues per publication, parse enrichments (code/data links) from closed issues
 - **MCP server** -- 17 tools for querying publications from AI assistants
+- **Google Scholar alert ingestion** -- parse publications from Scholar alert emails via IMAP
 - **Notifications** -- Slack and email digests for new publications
 
 ## Installation
@@ -123,8 +124,66 @@ Run `labpubs --help` for all commands. Key commands:
 | `show` | Show detailed metadata for a work |
 | `export bibtex` | Export as BibTeX |
 | `export grant-report` | Generate funder/award report |
+| `ingest scholar-alerts` | Ingest publications from Google Scholar alert emails |
 | `issues create` | Create GitHub verification issues |
 | `mcp` | Start the MCP server |
+
+## Google Scholar Alert Ingestion
+
+labpubs can ingest publications from Google Scholar alert emails. This supplements the API-based sync by catching papers that Scholar finds but OpenAlex/S2 may not yet index.
+
+### Prerequisites
+
+1. **Google Scholar alerts** -- Set up alerts for each researcher at [scholar.google.com/scholar_alerts](https://scholar.google.com/scholar_alerts). You can create alerts for a researcher's profile or for specific search queries.
+
+2. **Gmail App Password** -- labpubs connects to Gmail via IMAP, which requires an App Password (not your regular Gmail password):
+   - Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+   - You may need to enable 2-Step Verification first
+   - Generate an App Password for "Mail" and copy it
+
+3. **Enable IMAP** in Gmail settings: Settings > See all settings > Forwarding and POP/IMAP > Enable IMAP
+
+### Setup
+
+1. Set environment variables with your Gmail credentials:
+
+```bash
+export SCHOLAR_EMAIL="your.email@gmail.com"
+export SCHOLAR_PASSWORD="your-app-password"
+```
+
+2. Add the `scholar_alerts` section to your `labpubs.yaml`:
+
+```yaml
+scholar_alerts:
+  enabled: true
+
+  # Map alerts to researchers so publications get linked correctly
+  researcher_map:
+    - researcher_name: "Jane Doe"                 # must match a name in researchers list
+      scholar_profile_user: "abc123XYZ"            # from scholar.google.com/citations?user=abc123XYZ
+    - researcher_name: "John Smith"
+      alert_subject_prefix: "John Smith"           # matches email subject containing this text
+```
+
+The `researcher_map` tells labpubs which researcher each alert email belongs to. You can match by:
+- **`scholar_profile_user`** -- the `user=` parameter from a Google Scholar profile URL
+- **`alert_subject_prefix`** -- text that appears in the alert email subject line
+
+3. Run the ingestion:
+
+```bash
+# Ingest unread Scholar alert emails
+labpubs ingest scholar-alerts
+
+# Include already-read emails too
+labpubs ingest scholar-alerts --all
+
+# Preview without saving to database
+labpubs ingest scholar-alerts --dry-run
+```
+
+Publications from alerts are deduplicated against your existing database, so you can safely run both `sync` and `ingest scholar-alerts` without creating duplicates.
 
 ## Documentation
 

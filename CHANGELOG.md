@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- Google Scholar alert email ingestion via IMAP (`labpubs ingest scholar-alerts`)
+- `ScholarAlertConfig` for YAML-based alert configuration (IMAP server, credentials, researcher mapping)
+- `IngestResult` model for alert ingestion results
+- `GOOGLE_SCHOLAR_ALERT` source enum value
+- SQLite tables for alert email tracking (`scholar_alert_emails`, `scholar_alert_items`)
+- `_dedup_and_store()` method extracted from `sync()` for reuse by ingest pipeline
+- Ingest test suite (HTML parsing, URL resolution, Work conversion, researcher matching, store integration, config)
+- Golden HTML fixture for Scholar alert email parsing tests
 - Active dates (`start_date`, `end_date`) for lab member tracking
 - Group membership for lab members (arbitrary labels like "NLP", "faculty")
 - `labpubs init` command to bootstrap config from a CSV of lab members

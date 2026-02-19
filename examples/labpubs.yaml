@@ -59,6 +59,36 @@ notifications:
   #   to_addresses:
   #     - "lab-list@example.edu"
 
+# Google Scholar alert email ingestion (optional)
+# Connects to your Gmail via IMAP and parses Scholar alert emails
+# into publications. Requires a Gmail App Password.
+# See README for full setup instructions.
+scholar_alerts:
+  enabled: false
+  imap_server: "imap.gmail.com"
+  mailbox: "INBOX"
+
+  # Search criteria for finding Scholar alert emails
+  search:
+    from_addr: "scholaralerts-noreply@google.com"
+    subject_contains: "new articles"
+    unseen_only: true
+
+  # IMAP credentials (read from environment variables)
+  auth:
+    username_env: "SCHOLAR_EMAIL"       # env var containing your Gmail address
+    app_password_env: "SCHOLAR_PASSWORD" # env var containing your App Password
+
+  # Map Scholar alerts to tracked researchers
+  # Each entry links an alert email to a researcher in the list above.
+  # Use scholar_profile_user (the "user=" ID from Google Scholar URLs)
+  # or alert_subject_prefix (text that appears in the email subject).
+  researcher_map:
+    - researcher_name: "Jane Doe"
+      scholar_profile_user: "abc123XYZ"    # from scholar.google.com/citations?user=abc123XYZ
+    - researcher_name: "John Smith"
+      alert_subject_prefix: "John Smith"   # matches subject "new articles for John Smith"
+
 # Export settings
 exports:
   bibtex_path: "~/lab-publications.bib"

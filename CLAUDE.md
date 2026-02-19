@@ -54,9 +54,11 @@ uv run labpubs init members.csv --lab-name "Lab Name" --openalex-email user@exam
 
 4. **Dedup** (`dedup.py`): Three-tier matching — DOI exact match → fuzzy title (rapidfuzz token_sort_ratio ≥ 90) → title+author+year fallback. `merge_works()` fills missing fields from new source, always takes higher citation count.
 
-5. **Storage** (`store.py`): SQLite with WAL mode. Tables: `researchers`, `works`, `work_authors`, `researcher_works`, `funders`, `awards`, `work_awards`, `work_funders`, `linked_resources`, `sync_log`. Works are hydrated from multiple tables via `_hydrate_work()`. Researchers store `groups` as JSON text.
+5. **Storage** (`store.py`): SQLite with WAL mode. Tables: `researchers`, `works`, `work_authors`, `researcher_works`, `funders`, `awards`, `work_awards`, `work_funders`, `linked_resources`, `sync_log`, `scholar_alert_emails`, `scholar_alert_items`. Works are hydrated from multiple tables via `_hydrate_work()`. Researchers store `groups` as JSON text.
 
-6. **Export** (`export/`): BibTeX, CSL-JSON, CV entries, JSON, grant reports. All read from Store.
+6. **Ingest** (`ingest/scholar_alerts.py`): Google Scholar alert email ingestion via IMAP. Connects to Gmail, fetches alert emails, parses HTML with BeautifulSoup (`.gse_alrt_title` anchors), converts to Work objects, and deduplicates via `_dedup_and_store()`. Idempotent via `scholar_alert_emails` table (message_id PRIMARY KEY). The `ScholarAlertConfig` in `config.py` controls IMAP server, credentials (env var names), search criteria, and researcher mapping. CLI: `labpubs ingest scholar-alerts`.
+
+7. **Export** (`export/`): BibTeX, CSL-JSON, CV entries, JSON, grant reports. All read from Store.
 
 ### Source Backends (`sources/`)
 

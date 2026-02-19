@@ -97,6 +97,40 @@ class GitHubIntegrationConfig(BaseModel):
     author_labels: bool = True
 
 
+class ScholarAlertSearchConfig(BaseModel):
+    """Search criteria for Scholar alert emails."""
+
+    from_addr: str = "scholaralerts-noreply@google.com"
+    subject_contains: str = "new articles"
+    unseen_only: bool = True
+
+
+class ScholarAlertAuthConfig(BaseModel):
+    """IMAP authentication settings (env var names for credentials)."""
+
+    username_env: str = "SCHOLAR_EMAIL"
+    app_password_env: str = "SCHOLAR_PASSWORD"
+
+
+class ScholarResearcherMap(BaseModel):
+    """Maps a Scholar alert to a tracked researcher."""
+
+    researcher_name: str
+    scholar_profile_user: str | None = None
+    alert_subject_prefix: str | None = None
+
+
+class ScholarAlertConfig(BaseModel):
+    """Google Scholar alert email ingestion settings."""
+
+    enabled: bool = False
+    imap_server: str = "imap.gmail.com"
+    mailbox: str = "INBOX"
+    search: ScholarAlertSearchConfig = Field(default_factory=ScholarAlertSearchConfig)
+    auth: ScholarAlertAuthConfig = Field(default_factory=ScholarAlertAuthConfig)
+    researcher_map: list[ScholarResearcherMap] = Field(default_factory=list)
+
+
 class LabPubsConfig(BaseModel):
     """Top-level labpubs configuration."""
 
@@ -113,6 +147,7 @@ class LabPubsConfig(BaseModel):
     grant_aliases: dict[str, GrantAliasConfig] = Field(default_factory=dict)
     tracked_awards: list[TrackedAwardConfig] = Field(default_factory=list)
     github_integration: GitHubIntegrationConfig | None = None
+    scholar_alerts: ScholarAlertConfig = Field(default_factory=ScholarAlertConfig)
 
     @property
     def resolved_database_path(self) -> Path:

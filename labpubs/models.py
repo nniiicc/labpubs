@@ -15,6 +15,7 @@ class Source(StrEnum):
     OPENALEX = "openalex"
     SEMANTIC_SCHOLAR = "semantic_scholar"
     CROSSREF = "crossref"
+    GOOGLE_SCHOLAR_ALERT = "google_scholar_alert"
 
 
 class WorkType(StrEnum):
@@ -137,4 +138,16 @@ class SyncResult(BaseModel):
     new_works: list[Work] = Field(default_factory=list)
     updated_works: list[Work] = Field(default_factory=list)
     total_works: int
+    errors: list[str] = Field(default_factory=list)
+
+
+class IngestResult(BaseModel):
+    """Result of an alert ingestion operation."""
+
+    timestamp: datetime
+    emails_checked: int
+    items_found: int
+    new_works: list[Work] = Field(default_factory=list)
+    updated_works: list[Work] = Field(default_factory=list)
+    skipped_emails: int = 0
     errors: list[str] = Field(default_factory=list)

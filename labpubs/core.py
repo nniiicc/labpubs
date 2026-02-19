@@ -21,6 +21,7 @@ from labpubs.models import (
     Author,
     Award,
     Funder,
+    IngestResult,
     SyncResult,
     Work,
     WorkType,
@@ -127,41 +128,9 @@ class LabPubs:
                 continue
 
             fetched = await self._fetch_all_sources(rc, since_date)
-
-            existing_works = self.store.get_all_works_for_matching()
-
-            for work in fetched:
-                match_id = find_match(work, existing_works)
-                if match_id is None:
-                    work.first_seen = datetime.utcnow()
-                    work_id = self.store.insert_work(work)
-                    self.store.link_researcher_work(researcher_id, work_id)
-                    new_works.append(work)
-                    # Add to existing for subsequent dedup checks
-                    surnames = [
-                        a.name.split()[-1].lower() for a in work.authors if a.name
-                    ]
-                    existing_works.append(
-                        (
-                            work_id,
-                            work.title.lower(),
-                            work.doi,
-                            work.year,
-                            surnames,
-                        )
-                    )
-                else:
-                    existing_result = (
-                        self.store.find_work_by_doi(work.doi) if work.doi else None
-                    )
-                    if existing_result is None:
-                        existing_result = self.store.find_work_by_title(work.title)
-                    if existing_result:
-                        _, existing_work = existing_result
-                        merged = merge_works(existing_work, work)
-                        self.store.update_work(match_id, merged)
-                        self.store.link_researcher_work(researcher_id, match_id)
-                        updated_works.append(merged)
+            new, updated = self._dedup_and_store(fetched, researcher_id)
+            new_works.extend(new)
+            updated_works.extend(updated)
 
         result = SyncResult(
             timestamp=datetime.utcnow(),
@@ -296,6 +265,195 @@ class LabPubs:
                 config_key=researcher_config.name,
                 openalex_id=resolved_id,
             )
+
+    def _dedup_and_store(
+        self,
+        works: list[Work],
+        researcher_id: int | None = None,
+    ) -> tuple[list[Work], list[Work]]:
+        """Deduplicate works against existing store and persist.
+
+        For each candidate work, checks for an existing match using
+        the three-tier dedup strategy. New works are inserted, matched
+        works are merged.
+
+        Args:
+            works: Candidate works to dedup and store.
+            researcher_id: Optional researcher to link works to.
+
+        Returns:
+            Tuple of (new_works, updated_works).
+        """
+        new_works: list[Work] = []
+        updated_works: list[Work] = []
+        existing_works = self.store.get_all_works_for_matching()
+
+        for work in works:
+            match_id = find_match(work, existing_works)
+            if match_id is None:
+                work.first_seen = datetime.utcnow()
+                work_id = self.store.insert_work(work)
+                if researcher_id is not None:
+                    self.store.link_researcher_work(researcher_id, work_id)
+                new_works.append(work)
+                # Add to existing for subsequent dedup checks
+                surnames = [a.name.split()[-1].lower() for a in work.authors if a.name]
+                existing_works.append(
+                    (
+                        work_id,
+                        work.title.lower(),
+                        work.doi,
+                        work.year,
+                        surnames,
+                    )
+                )
+            else:
+                existing_result = (
+                    self.store.find_work_by_doi(work.doi) if work.doi else None
+                )
+                if existing_result is None:
+                    existing_result = self.store.find_work_by_title(work.title)
+                if existing_result:
+                    _, existing_work = existing_result
+                    merged = merge_works(existing_work, work)
+                    self.store.update_work(match_id, merged)
+                    if researcher_id is not None:
+                        self.store.link_researcher_work(researcher_id, match_id)
+                    updated_works.append(merged)
+
+        return new_works, updated_works
+
+    async def ingest_scholar_alerts(
+        self,
+        since: str | None = None,
+        unseen_only: bool = True,
+        dry_run: bool = False,
+    ) -> IngestResult:
+        """Ingest publications from Google Scholar alert emails.
+
+        Connects to IMAP, fetches alert emails, parses publications,
+        deduplicates against existing works, and persists.
+
+        Args:
+            since: Only process emails since this ISO date (unused in v1).
+            unseen_only: Process only unread emails.
+            dry_run: Parse and display without saving.
+
+        Returns:
+            IngestResult with counts and lists of new/updated works.
+        """
+        from labpubs.ingest.scholar_alerts import (
+            alert_item_to_work,
+            fetch_alert_emails_sync,
+            match_email_to_researcher,
+            parse_alert_html,
+        )
+
+        alert_config = self.config.scholar_alerts
+        if not alert_config.enabled:
+            return IngestResult(
+                timestamp=datetime.utcnow(),
+                emails_checked=0,
+                items_found=0,
+                errors=["Scholar alert ingestion is not enabled in config"],
+            )
+
+        # Create a copy to avoid mutating the shared config object
+        if not unseen_only:
+            alert_config = alert_config.model_copy(deep=True)
+            alert_config.search.unseen_only = False
+
+        loop = asyncio.get_running_loop()
+        try:
+            emails = await loop.run_in_executor(
+                None, fetch_alert_emails_sync, alert_config
+            )
+        except Exception as exc:
+            logger.error("Failed to fetch alert emails: %s", exc)
+            return IngestResult(
+                timestamp=datetime.utcnow(),
+                emails_checked=0,
+                items_found=0,
+                errors=[f"IMAP fetch failed: {exc}"],
+            )
+
+        new_works: list[Work] = []
+        updated_works: list[Work] = []
+        items_found = 0
+        skipped = 0
+        errors: list[str] = []
+
+        for alert_email in emails:
+            # Idempotency check
+            if self.store.is_alert_email_processed(alert_email.message_id):
+                skipped += 1
+                continue
+
+            items = parse_alert_html(alert_email.html_body)
+            items_found += len(items)
+
+            # Determine researcher
+            researcher_name = match_email_to_researcher(
+                alert_email.subject,
+                alert_email.html_body,
+                alert_config.researcher_map,
+            )
+            researcher_id = (
+                self.store.get_researcher_id(researcher_name)
+                if researcher_name
+                else None
+            )
+
+            if not dry_run:
+                self.store.insert_alert_email(
+                    message_id=alert_email.message_id,
+                    internal_date=alert_email.internal_date,
+                    gmail_uid=alert_email.gmail_uid,
+                    subject=alert_email.subject,
+                    from_addr=alert_email.from_addr,
+                    to_addr=alert_email.to_addr,
+                    raw_html=alert_email.html_body,
+                )
+
+            for item in items:
+                work = alert_item_to_work(item)
+
+                if dry_run:
+                    new_works.append(work)
+                    continue
+
+                new, updated = self._dedup_and_store([work], researcher_id)
+                new_works.extend(new)
+                updated_works.extend(updated)
+
+                # Determine work_id for alert item record
+                work_id: int | None = None
+                if new or updated:
+                    title_result = self.store.find_work_by_title(work.title)
+                    if title_result:
+                        work_id = title_result[0]
+
+                self.store.insert_alert_item(
+                    message_id=alert_email.message_id,
+                    position=item.position,
+                    title=item.title,
+                    authors=item.authors_raw,
+                    venue=item.venue,
+                    year=item.year,
+                    target_url=item.target_url,
+                    scholar_url=item.scholar_url,
+                    work_id=work_id,
+                )
+
+        return IngestResult(
+            timestamp=datetime.utcnow(),
+            emails_checked=len(emails),
+            items_found=items_found,
+            new_works=new_works,
+            updated_works=updated_works,
+            skipped_emails=skipped,
+            errors=errors,
+        )
 
     def get_works(
         self,

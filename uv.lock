@@ -480,6 +480,7 @@ name = "labpubs"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "beautifulsoup4" },
     { name = "bibtexparser" },
     { name = "click" },
     { name = "habanero" },
@@ -514,6 +515,7 @@ slack = [
 
 [package.metadata]
 requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "bibtexparser", specifier = ">=1.4" },
     { name = "click", specifier = ">=8.0" },
     { name = "furo", marker = "extra == 'docs'" },

@@ -163,6 +163,35 @@ CREATE INDEX IF NOT EXISTS idx_funders_openalex
     ON funders(openalex_id);
 CREATE INDEX IF NOT EXISTS idx_linked_resources_work
     ON linked_resources(work_id);
+
+CREATE TABLE IF NOT EXISTS scholar_alert_emails (
+    message_id TEXT PRIMARY KEY,
+    internal_date TEXT,
+    gmail_uid TEXT,
+    subject TEXT,
+    from_addr TEXT,
+    to_addr TEXT,
+    processed_at TEXT NOT NULL,
+    raw_html TEXT
+);
+
+CREATE TABLE IF NOT EXISTS scholar_alert_items (
+    id INTEGER PRIMARY KEY,
+    message_id TEXT NOT NULL REFERENCES scholar_alert_emails(message_id),
+    position INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    authors TEXT,
+    venue TEXT,
+    year INTEGER,
+    target_url TEXT,
+    scholar_url TEXT,
+    work_id INTEGER REFERENCES works(id),
+    created_at TEXT NOT NULL,
+    UNIQUE(message_id, position)
+);
+
+CREATE INDEX IF NOT EXISTS idx_scholar_alert_items_work
+    ON scholar_alert_items(work_id);
 """
 
 _MIGRATION_ADD_VERIFICATION = """
@@ -1494,3 +1523,123 @@ class Store:
         """
         cursor = self._conn.execute("SELECT COUNT(*) FROM works")
         return int(cursor.fetchone()[0])
+
+    # ── Scholar alert helpers ──────────────────────────────────
+
+    def is_alert_email_processed(self, message_id: str) -> bool:
+        """Check if a Scholar alert email has already been processed.
+
+        Args:
+            message_id: RFC Message-ID header value.
+
+        Returns:
+            True if the email is already in the database.
+        """
+        cursor = self._conn.execute(
+            "SELECT 1 FROM scholar_alert_emails WHERE message_id = ?",
+            (message_id,),
+        )
+        return cursor.fetchone() is not None
+
+    def insert_alert_email(
+        self,
+        message_id: str,
+        internal_date: str | None,
+        gmail_uid: str | None,
+        subject: str | None,
+        from_addr: str | None,
+        to_addr: str | None,
+        raw_html: str | None,
+    ) -> None:
+        """Record a processed Scholar alert email.
+
+        Args:
+            message_id: RFC Message-ID header value.
+            internal_date: Email internal date string.
+            gmail_uid: IMAP UID (optional).
+            subject: Email subject line.
+            from_addr: Sender address.
+            to_addr: Recipient address.
+            raw_html: Raw HTML body.
+        """
+        now = datetime.utcnow().isoformat()
+        self._conn.execute(
+            """INSERT OR IGNORE INTO scholar_alert_emails
+               (message_id, internal_date, gmail_uid, subject,
+                from_addr, to_addr, processed_at, raw_html)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                message_id,
+                internal_date,
+                gmail_uid,
+                subject,
+                from_addr,
+                to_addr,
+                now,
+                raw_html,
+            ),
+        )
+        self._conn.commit()
+
+    def insert_alert_item(
+        self,
+        message_id: str,
+        position: int,
+        title: str,
+        authors: str | None,
+        venue: str | None,
+        year: int | None,
+        target_url: str | None,
+        scholar_url: str | None,
+        work_id: int | None = None,
+    ) -> int:
+        """Insert a parsed alert item.
+
+        Args:
+            message_id: Parent email Message-ID.
+            position: Item position within the email (0-based).
+            title: Parsed title.
+            authors: Authors string.
+            venue: Venue string.
+            year: Publication year.
+            target_url: Resolved article URL.
+            scholar_url: Scholar link URL.
+            work_id: Linked work DB ID (if matched).
+
+        Returns:
+            Database row ID for the alert item.
+        """
+        now = datetime.utcnow().isoformat()
+        cursor = self._conn.execute(
+            """INSERT INTO scholar_alert_items
+               (message_id, position, title, authors, venue,
+                year, target_url, scholar_url, work_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                message_id,
+                position,
+                title,
+                authors,
+                venue,
+                year,
+                target_url,
+                scholar_url,
+                work_id,
+                now,
+            ),
+        )
+        self._conn.commit()
+        return cursor.lastrowid  # type: ignore[return-value]
+
+    def update_alert_item_work_id(self, item_id: int, work_id: int) -> None:
+        """Link an alert item to a work after dedup matching.
+
+        Args:
+            item_id: Alert item DB row ID.
+            work_id: Work DB row ID.
+        """
+        self._conn.execute(
+            "UPDATE scholar_alert_items SET work_id = ? WHERE id = ?",
+            (work_id, item_id),
+        )
+        self._conn.commit()
