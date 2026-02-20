@@ -6,7 +6,7 @@
 [![GitHub](https://img.shields.io/github/stars/nniiicc/labpubs)](https://github.com/nniiicc/labpubs)
 [![CI](https://github.com/nniiicc/labpubs/actions/workflows/ci.yml/badge.svg)](https://github.com/nniiicc/labpubs/actions/workflows/ci.yml)
 
-**labpubs** syncs publications from OpenAlex, Semantic Scholar, and Crossref into a local SQLite database, deduplicates across sources, and exports to BibTeX, CSL-JSON, CV entries, and grant reports. It includes a Click CLI, a Model Context Protocol (MCP) server, and a GitHub Issues workflow for manual verification.
+**labpubs** syncs publications from OpenAlex, Semantic Scholar, and Crossref into a local SQLite database, deduplicates across sources, and exports to BibTeX, CSL-JSON, CV entries, and grant reports. It can also ingest publications from Google Scholar alert emails via IMAP. It includes a Click CLI, a Model Context Protocol (MCP) server, and a GitHub Issues workflow for manual verification.
 
 ## Features
 
