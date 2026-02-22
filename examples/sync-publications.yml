@@ -1,0 +1,90 @@
+# Example GitHub Actions workflow for labpubs
+#
+# Runs daily to sync publications from upstream sources, ingest Google
+# Scholar alert emails, link orphaned works, and optionally notify Slack.
+# The database and export files are committed back to the repo so each
+# run builds on the previous one.
+#
+# Required repository secrets:
+#   SCHOLAR_EMAIL    - Gmail address receiving Scholar alerts
+#   SCHOLAR_PASSWORD - Gmail app password (not your account password)
+#
+# Optional repository secrets:
+#   SLACK_WEBHOOK_URL - Incoming Slack webhook for notifications
+
+name: Sync Publications
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SCHOLAR_EMAIL: ${{ secrets.SCHOLAR_EMAIL }}
+      SCHOLAR_PASSWORD: ${{ secrets.SCHOLAR_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Inject Slack webhook into config
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          sed -i 's|\${SLACK_WEBHOOK_URL}|'"$SLACK_WEBHOOK_URL"'|g' labpubs.yaml
+
+      - name: Sync new publications
+        id: sync
+        run: |
+          output=$(uv run labpubs -c labpubs.yaml sync 2>&1) || true
+          echo "$output"
+          new_count=$(echo "$output" | grep -oP 'New publications: \K\d+' || echo "0")
+          echo "new_count=$new_count" >> "$GITHUB_OUTPUT"
+
+      - name: Ingest Scholar alerts
+        id: ingest
+        continue-on-error: true
+        if: ${{ env.SCHOLAR_EMAIL != '' && env.SCHOLAR_PASSWORD != '' }}
+        run: |
+          output=$(uv run labpubs -c labpubs.yaml ingest scholar-alerts 2>&1) || true
+          echo "$output"
+          ingest_count=$(echo "$output" | grep -oP 'New publications: \K\d+' || echo "0")
+          echo "ingest_count=$ingest_count" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack of new publications
+        if: >-
+          ${{ success()
+              && env.SLACK_WEBHOOK_URL != ''
+              && (steps.sync.outputs.new_count != '0'
+                  || steps.ingest.outputs.ingest_count != '0') }}
+        run: uv run labpubs -c labpubs.yaml notify --days 1
+
+      - name: Export publications
+        run: uv run labpubs -c labpubs.yaml export json -o pubs.json
+        continue-on-error: true
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add --ignore-missing *.db *.bib *.json
+          git diff --cached --quiet || git commit -m "chore: sync publications $(date -u +%Y-%m-%d)"
+          git push
