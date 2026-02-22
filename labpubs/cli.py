@@ -789,3 +789,31 @@ def notify(ctx: click.Context, days: int) -> None:
     else:
         click.echo("Some notifications failed.", err=True)
         sys.exit(1)
+
+
+@main.command()
+@click.option("--host", default="127.0.0.1", help="Bind address.")
+@click.option("--port", default=8000, type=int, help="Port number.")
+@click.option("--reload", "auto_reload", is_flag=True, help="Auto-reload on changes.")
+@click.pass_context
+def serve(
+    ctx: click.Context,
+    host: str,
+    port: int,
+    auto_reload: bool,
+) -> None:
+    """Start the REST API server (requires labpubs[api])."""
+    try:
+        import uvicorn  # noqa: F811
+    except ImportError:
+        click.echo(
+            "REST API dependencies not installed. Run: pip install labpubs[api]",
+            err=True,
+        )
+        sys.exit(1)
+
+    from labpubs.api.app import create_app
+
+    config_path = ctx.obj["config"]
+    app = create_app(config_path)
+    uvicorn.run(app, host=host, port=port, reload=auto_reload)
