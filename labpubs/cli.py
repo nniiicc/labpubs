@@ -759,6 +759,37 @@ def scholar_alerts(
 
     if dry_run:
         click.echo("\n(dry run -- nothing was saved)")
+        return
+
+    # Automatically link any orphaned scholar-alert works
+    _run_link_orphans(engine)
+
+
+def _run_link_orphans(engine: LabPubs) -> None:
+    """Link orphaned scholar-alert works to researchers.
+
+    Args:
+        engine: Initialized LabPubs engine.
+    """
+    from labpubs.ingest.link_scholar_works import link_scholar_works
+
+    db_path = str(engine.config.resolved_database_path)
+    count = link_scholar_works(db_path)
+    if count > 0:
+        click.echo(f"Linked {count} orphaned scholar-alert work(s) to researchers")
+
+
+@ingest.command("link-orphans")
+@click.pass_context
+def link_orphans(ctx: click.Context) -> None:
+    """Link orphaned scholar-alert works to researchers.
+
+    Finds works ingested from scholar alerts that have no
+    researcher_works linkage and resolves them by matching
+    alert email subjects to researcher names.
+    """
+    engine = _get_engine(ctx.obj["config"])
+    _run_link_orphans(engine)
 
 
 @main.command("mcp")
