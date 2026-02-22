@@ -102,7 +102,7 @@ class ScholarAlertSearchConfig(BaseModel):
 
     from_addr: str = "scholaralerts-noreply@google.com"
     subject_contains: str = "new articles"
-    unseen_only: bool = True
+    unseen_only: bool = False
 
 
 class ScholarAlertAuthConfig(BaseModel):
