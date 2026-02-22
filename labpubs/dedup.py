@@ -8,7 +8,7 @@ from typing import TypeVar
 
 from rapidfuzz import fuzz
 
-from labpubs.models import Award, Funder, Source, Work, WorkType
+from labpubs.models import Author, Award, Funder, Source, Work, WorkType
 from labpubs.normalize import normalize_doi as _normalize_doi
 from labpubs.normalize import normalize_title as _normalize_title
 from labpubs.normalize import split_author_name
@@ -86,11 +86,60 @@ def find_match(
     return None
 
 
+def _pick_richer_str(a: str | None, b: str | None) -> str | None:
+    """Return the longer non-empty string, preferring non-truncated.
+
+    Args:
+        a: First candidate string.
+        b: Second candidate string.
+
+    Returns:
+        The richer of the two, or whichever is non-None.
+    """
+    if not a:
+        return b
+    if not b:
+        return a
+    a_trunc = a.rstrip().endswith(("\u2026", "..."))
+    b_trunc = b.rstrip().endswith(("\u2026", "..."))
+    if a_trunc and not b_trunc:
+        return b
+    if b_trunc and not a_trunc:
+        return a
+    return a if len(a) >= len(b) else b
+
+
+def _pick_richer_authors(a: list[Author], b: list[Author]) -> list[Author]:
+    """Return the richer author list.
+
+    Prefers more authors; on tie, prefers longer total name length
+    (full names over abbreviated initials).
+
+    Args:
+        a: First author list.
+        b: Second author list.
+
+    Returns:
+        The richer of the two.
+    """
+    if not a:
+        return b
+    if not b:
+        return a
+    if len(a) != len(b):
+        return a if len(a) > len(b) else b
+    len_a = sum(len(x.name) for x in a)
+    len_b = sum(len(x.name) for x in b)
+    return a if len_a >= len_b else b
+
+
 def merge_works(existing: Work, new: Work) -> Work:
     """Merge metadata from a new work into an existing work.
 
-    Prefers existing data but fills in missing fields from the new
-    source. Always updates citation counts and adds new source IDs.
+    For title, authors, and venue, prefers the **richer** value
+    (longer, non-truncated, more complete). Fills missing fields
+    from the new source. Always updates citation counts and adds
+    new source IDs.
 
     Args:
         existing: The existing stored work.
@@ -107,11 +156,11 @@ def merge_works(existing: Work, new: Work) -> Work:
 
     return Work(
         doi=existing.doi or new.doi,
-        title=existing.title,
-        authors=existing.authors if existing.authors else new.authors,
+        title=_pick_richer_str(existing.title, new.title) or existing.title,
+        authors=_pick_richer_authors(existing.authors, new.authors),
         publication_date=existing.publication_date or new.publication_date,
         year=existing.year or new.year,
-        venue=existing.venue or new.venue,
+        venue=_pick_richer_str(existing.venue, new.venue),
         work_type=existing.work_type
         if existing.work_type != WorkType.OTHER
         else new.work_type,
