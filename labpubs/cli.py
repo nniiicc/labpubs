@@ -713,8 +713,8 @@ def ingest() -> None:
 )
 @click.option(
     "--unseen-only/--all",
-    default=True,
-    help="Process only unread emails (default) or all.",
+    default=False,
+    help="Process all emails (default) or only unread.",
 )
 @click.option(
     "--dry-run",
